@@ -1,26 +1,16 @@
 import { differenceInDays, differenceInMonths, differenceInYears } from "date-fns";
 
-const METADATA_SEPARATOR = "---CHRONICON_METADATA---";
-const COLOR_PREFIX = "color:";
-const TAGS_PREFIX = "tags:";
+// Constantes para el manejo de metadatos en formato JSON
+const METADATA_JSON_PREFIX = "<!-- CHRONICON_METADATA:";
+const METADATA_JSON_SUFFIX = "-->";
 const DEFAULT_EVENT_DURATION = 60; // minutes
 
-export const formatEventDescription = (description, color, tags) => {
-  const metadata = [];
-  
-  // Asegurar que el color sea un valor válido
-  if (color && typeof color === 'string' && color.trim() !== '') {
-    // Normalizar el formato del color (asegurar que tenga # si es un color hex)
-    let normalizedColor = color.trim();
-    if (normalizedColor.match(/^[0-9A-Fa-f]{6}$/)) {
-      normalizedColor = `#${normalizedColor}`;
-    } else if (normalizedColor.match(/^[0-9A-Fa-f]{3}$/)) {
-      normalizedColor = `#${normalizedColor}`;
-    }
-    
-    metadata.push(`${COLOR_PREFIX}${normalizedColor}`);
-    console.log(`Color metadata added: ${COLOR_PREFIX}${normalizedColor}`);
-  }
+export const formatEventDescription = (description, tags) => {
+  // Crear objeto de metadatos
+  const metadata = {
+    version: "1.0",
+    tags: []
+  };
   
   if (tags && Array.isArray(tags) && tags.length > 0) {
     const cleanedTags = tags
@@ -28,69 +18,101 @@ export const formatEventDescription = (description, color, tags) => {
       .filter((tag) => tag && tag.length > 0);
 
     if (cleanedTags.length > 0) {
-      metadata.push(`${TAGS_PREFIX}${cleanedTags.join(",")}`);
+      metadata.tags = cleanedTags;
     }
   }
 
   const formattedDescription = description || "";
-  const result =
-    metadata.length > 0
-      ? `${formattedDescription}\n${METADATA_SEPARATOR}\n${metadata.join("\n")}`
-      : formattedDescription;
+  
+  try {
+    // Convertir metadatos a JSON y añadirlos a la descripción
+    const metadataJson = JSON.stringify(metadata);
+    const result = `${formattedDescription}\n${METADATA_JSON_PREFIX}${metadataJson}${METADATA_JSON_SUFFIX}`;
 
-  console.log("Formatted description with metadata:", {
-    input: { description, color, tags },
-    output: result,
-    parsedBack: parseEventDescription(result),
-  });
+    console.log("Formatted description with metadata:", {
+      input: { description, tags },
+      output: result,
+      parsedBack: parseEventDescription(result),
+    });
 
-  return result;
+    return result;
+  } catch (error) {
+    console.error("Error formatting event description:", error);
+    // En caso de error, devolver solo la descripción sin metadatos
+    return formattedDescription;
+  }
 };
 
 export const parseEventDescription = (fullDescription) => {
   if (!fullDescription) {
-    return { description: "", color: null, tags: [] };
+    return { description: "", tags: [] };
   }
 
-  const parts = fullDescription.split(METADATA_SEPARATOR);
-  const description = parts[0].trim();
-
-  let color = null;
+  // Valores por defecto
+  let description = fullDescription;
   let tags = [];
 
-  if (parts.length > 1) {
-    const metadata = parts[1].trim().split("\n");
-    metadata.forEach((line) => {
-      const trimmedLine = line.trim();
-      if (trimmedLine.startsWith(COLOR_PREFIX)) {
-        color = trimmedLine.substring(COLOR_PREFIX.length).trim();
-        console.log(`Color extracted from metadata: ${color}`);
+  try {
+    // Buscar metadatos en formato JSON
+    const metadataStartIndex = fullDescription.indexOf(METADATA_JSON_PREFIX);
+    
+    if (metadataStartIndex !== -1) {
+      const metadataEndIndex = fullDescription.indexOf(METADATA_JSON_SUFFIX, metadataStartIndex);
+      
+      if (metadataEndIndex !== -1) {
+        // Extraer la descripción (todo antes de los metadatos)
+        description = fullDescription.substring(0, metadataStartIndex).trim();
         
-        // Validar y normalizar el color
-        if (color) {
-          // Asegurar que los colores hex tengan el formato correcto
-          if (color.match(/^#?[0-9A-Fa-f]{3}$/) || color.match(/^#?[0-9A-Fa-f]{6}$/)) {
-            // Asegurar que tenga el prefijo #
-            if (!color.startsWith('#')) {
-              color = `#${color}`;
-            }
-          } else if (!color.match(/^(rgb|rgba|hsl|hsla)/)) {
-            // Si no es un formato de color reconocido, usar el valor por defecto
-            console.warn(`Color no reconocido: ${color}, usando valor por defecto`);
-            color = "#ffffff";
+        // Extraer y parsear el JSON de metadatos
+        const metadataJsonStart = metadataStartIndex + METADATA_JSON_PREFIX.length;
+        const metadataJsonEnd = metadataEndIndex;
+        const metadataJson = fullDescription.substring(metadataJsonStart, metadataJsonEnd);
+        
+        try {
+          const metadata = JSON.parse(metadataJson);
+          
+          // Extraer tags del objeto de metadatos
+          if (metadata.tags && Array.isArray(metadata.tags)) {
+            tags = metadata.tags;
           }
+          
+          // Compatibilidad con versiones anteriores: si hay un color en los metadatos, ignorarlo
+          // ya que ahora usamos colorId de Google Calendar
+        } catch (jsonError) {
+          console.error("Error parsing metadata JSON:", jsonError);
         }
-      } else if (trimmedLine.startsWith(TAGS_PREFIX)) {
-        const tagsString = trimmedLine.substring(TAGS_PREFIX.length).trim();
-        tags = tagsString
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter((tag) => tag && tag.length > 0);
       }
-    });
+    } else {
+      // Intentar buscar metadatos en el formato antiguo para compatibilidad
+      const METADATA_SEPARATOR = "---CHRONICON_METADATA---";
+      const COLOR_PREFIX = "color:";
+      const TAGS_PREFIX = "tags:";
+      
+      const parts = fullDescription.split(METADATA_SEPARATOR);
+      description = parts[0].trim();
+
+      if (parts.length > 1) {
+        const metadata = parts[1].trim().split("\n");
+        metadata.forEach((line) => {
+          const trimmedLine = line.trim();
+          if (trimmedLine.startsWith(TAGS_PREFIX)) {
+            const tagsString = trimmedLine.substring(TAGS_PREFIX.length).trim();
+            tags = tagsString
+              .split(",")
+              .map((tag) => tag.trim())
+              .filter((tag) => tag && tag.length > 0);
+          }
+          // Ignorar el color en el formato antiguo, ya que ahora usamos colorId
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error parsing event description:", error);
+    // En caso de error, devolver la descripción completa sin metadatos
+    description = fullDescription;
   }
 
-  return { description, color, tags };
+  return { description, tags };
 };
 
 export const createEventObject = ({
@@ -98,7 +120,7 @@ export const createEventObject = ({
   name,
   startDate,
   description = "",
-  color = null,
+  colorId = null,
   tags = [],
 }) => {
   // Ensure we have a valid date
@@ -126,8 +148,13 @@ export const createEventObject = ({
       dateTime: end.toISOString(),
       timeZone,
     },
-    description: formatEventDescription(description, color, tags),
+    description: formatEventDescription(description, tags),
   };
+
+  // Si se proporciona un colorId, incluirlo
+  if (colorId) {
+    eventObject.colorId = colorId;
+  }
 
   // If ID is provided, include it (important for updates)
   if (id) {
@@ -147,7 +174,7 @@ export const parseGoogleEvent = (event) => {
   console.log("Parsing Google Calendar event:", event);
 
   // Extract metadata from description
-  const { description, color, tags } = parseEventDescription(event.description || "");
+  const { description, tags } = parseEventDescription(event.description || "");
 
   // Parse dates ensuring they are valid
   let startDate = null;
@@ -203,7 +230,7 @@ export const parseGoogleEvent = (event) => {
     startDate,
     endDate,
     description,
-    color,
+    colorId: event.colorId || null,
     tags,
     recurringEventId: event.recurringEventId,
   };

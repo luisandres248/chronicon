@@ -3,6 +3,7 @@ import {
   checkSignInStatus,
   initGoogleAPI,
   fetchCalendarEvents,
+  getCalendarColors,
 } from "../services/googleService";
 import { parseGoogleEvent } from "../services/eventService";
 
@@ -17,6 +18,8 @@ export const GlobalProvider = ({ children }) => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [calendarColors, setCalendarColors] = useState(null);
+  const [loadingColors, setLoadingColors] = useState(false);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -42,6 +45,28 @@ export const GlobalProvider = ({ children }) => {
 
     initializeApp();
   }, []);
+
+  // Cargar colores disponibles cuando el usuario está autenticado
+  useEffect(() => {
+    const loadColors = async () => {
+      if (!user) return;
+      
+      try {
+        setLoadingColors(true);
+        const colors = await getCalendarColors();
+        if (colors && colors.event) {
+          console.log("Loaded calendar colors:", colors.event);
+          setCalendarColors(colors.event);
+        }
+      } catch (error) {
+        console.error("Error loading calendar colors:", error);
+      } finally {
+        setLoadingColors(false);
+      }
+    };
+
+    loadColors();
+  }, [user]);
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -104,7 +129,16 @@ export const GlobalProvider = ({ children }) => {
   const addEvent = (event) => {
     const parsedEvent = parseGoogleEvent(event);
     if (parsedEvent) {
-      setEvents((prevEvents) => [...prevEvents, parsedEvent]);
+      console.log("Adding event to state:", parsedEvent);
+      setEvents((prevEvents) => {
+        // Verificar si el evento ya existe para evitar duplicados
+        const exists = prevEvents.some(e => e.id === parsedEvent.id);
+        if (exists) {
+          console.log("Event already exists, updating instead:", parsedEvent.id);
+          return prevEvents.map(e => e.id === parsedEvent.id ? parsedEvent : e);
+        }
+        return [...prevEvents, parsedEvent];
+      });
     } else {
       console.warn("Skipping invalid event:", event);
     }
@@ -113,20 +147,43 @@ export const GlobalProvider = ({ children }) => {
   const updateEvent = (updatedEvent) => {
     const parsedEvent = parseGoogleEvent(updatedEvent);
     if (parsedEvent) {
-      setEvents((prevEvents) =>
-        prevEvents.map((event) =>
+      console.log("Updating event in state:", parsedEvent);
+      setEvents((prevEvents) => {
+        // Verificar si el evento existe
+        const exists = prevEvents.some(e => e.id === parsedEvent.id);
+        if (!exists) {
+          console.log("Event doesn't exist, adding instead:", parsedEvent.id);
+          return [...prevEvents, parsedEvent];
+        }
+        return prevEvents.map((event) =>
           event.id === parsedEvent.id ? parsedEvent : event
-        )
-      );
+        );
+      });
     } else {
       console.warn("Skipping invalid event update:", updatedEvent);
     }
   };
 
   const deleteEvent = (eventId) => {
+    console.log("Deleting event from state:", eventId);
     setEvents((prevEvents) =>
       prevEvents.filter((event) => event.id !== eventId)
     );
+  };
+
+  // Función para reemplazar todos los eventos
+  const setAllEvents = (newEvents) => {
+    if (!newEvents || !Array.isArray(newEvents)) {
+      console.warn("Invalid events array:", newEvents);
+      return;
+    }
+    
+    console.log(`Setting all events (${newEvents.length})`);
+    const parsedEvents = newEvents
+      .map(parseGoogleEvent)
+      .filter(Boolean);
+    
+    setEvents(parsedEvents);
   };
 
   return (
@@ -144,6 +201,9 @@ export const GlobalProvider = ({ children }) => {
         addEvent,
         updateEvent,
         deleteEvent,
+        setAllEvents,
+        calendarColors,
+        loadingColors,
       }}
     >
       {children}

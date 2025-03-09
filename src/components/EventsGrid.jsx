@@ -26,6 +26,8 @@ const EventsGrid = () => {
     deleteEvent: deleteEventInState,
     setUser,
     setCalendar,
+    setEvents,
+    setAllEvents,
   } = useContext(GlobalContext);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -113,7 +115,7 @@ const EventsGrid = () => {
         name: formData.name.trim(),
         startDate: formData.startDate,
         description: formData.description || "",
-        color: formData.color || "#ffffff",
+        colorId: formData.colorId || null,
         tags: formData.tags || [],
       });
       
@@ -164,7 +166,7 @@ const EventsGrid = () => {
         name: formData.name || selectedEvent.name,
         startDate: formData.startDate || selectedEvent.startDate,
         description: formData.description !== undefined ? formData.description : selectedEvent.description,
-        color: formData.color || selectedEvent.color,
+        colorId: formData.colorId !== undefined ? formData.colorId : selectedEvent.colorId,
         tags: formData.tags || selectedEvent.tags,
       });
       
@@ -178,13 +180,21 @@ const EventsGrid = () => {
       
       console.log("Response from Google Calendar update:", updatedEvent);
       
+      if (!updatedEvent) {
+        throw new Error("No response received from Google Calendar API");
+      }
+      
       const parsedEvent = parseGoogleEvent(updatedEvent);
       console.log("Parsed updated event:", parsedEvent);
       
       if (parsedEvent) {
+        // Actualizar el evento en el estado global
         updateEventInState(parsedEvent);
         setFormOpen(false);
         setSelectedEvent(null);
+        
+        // Recargar eventos para asegurar que la UI esté actualizada
+        await reloadEvents();
       } else {
         throw new Error("Failed to parse updated event");
       }
@@ -193,6 +203,31 @@ const EventsGrid = () => {
       // Mostrar mensaje de error al usuario
     } finally {
       setProcessing(false);
+    }
+  };
+
+  // Función para recargar eventos desde Google Calendar
+  const reloadEvents = async () => {
+    if (!calendar?.id || !user) {
+      console.log("Cannot reload events - missing calendar or user");
+      return;
+    }
+    
+    try {
+      console.log("Reloading events from Google Calendar");
+      const calendarEvents = await fetchCalendarEvents(calendar.id);
+      
+      if (!calendarEvents || !Array.isArray(calendarEvents)) {
+        console.error("Invalid response when reloading events");
+        return;
+      }
+      
+      console.log(`Reloaded ${calendarEvents.length} events from Google Calendar`);
+      
+      // Usar la nueva función setAllEvents para actualizar todos los eventos a la vez
+      setAllEvents(calendarEvents);
+    } catch (error) {
+      console.error("Error reloading events:", error);
     }
   };
 
@@ -206,6 +241,9 @@ const EventsGrid = () => {
       setProcessing(true);
       await deleteEvent(calendar.id, event.id);
       deleteEventInState(event.id);
+      
+      // Recargar eventos para asegurar que la UI esté actualizada
+      await reloadEvents();
     } catch (error) {
       console.error("Error deleting event:", error);
     } finally {
@@ -223,26 +261,9 @@ const EventsGrid = () => {
     setSelectedEvent(null);
     
     // Recargar eventos para asegurar que la UI esté actualizada
-    if (calendar?.id && user) {
-      setProcessing(true);
-      fetchCalendarEvents(calendar.id)
-        .then(calendarEvents => {
-          const parsedEvents = calendarEvents
-            .map(parseGoogleEvent)
-            .filter(Boolean);
-          
-          // Actualizar el estado global con los eventos recargados
-          parsedEvents.forEach(event => {
-            updateEventInState(event);
-          });
-        })
-        .catch(error => {
-          console.error("Error reloading events after form close:", error);
-        })
-        .finally(() => {
-          setProcessing(false);
-        });
-    }
+    reloadEvents().catch(error => {
+      console.error("Error reloading events after form close:", error);
+    });
   };
 
   if (globalLoading || processing) {

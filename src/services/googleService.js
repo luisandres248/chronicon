@@ -411,19 +411,40 @@ export const getOrCreateChroniconCalendar = async () => {
   });
 };
 
+export const getCalendarColors = async () => {
+  return executeWithTokenRefresh(async () => {
+    try {
+      console.log("Fetching available colors from Google Calendar");
+      const response = await window.gapi.client.calendar.colors.get();
+      
+      if (!response || !response.result) {
+        console.warn("Invalid response from Google Calendar colors API:", response);
+        return null;
+      }
+      
+      console.log("Available colors:", response.result);
+      return response.result;
+    } catch (error) {
+      console.error("Error fetching calendar colors:", error);
+      throw error;
+    }
+  });
+};
+
 export const fetchCalendarEvents = async (calendarId) => {
   return executeWithTokenRefresh(async () => {
     try {
       console.log(`Fetching events for calendar: ${calendarId}`);
       const response = await window.gapi.client.calendar.events.list({
         calendarId: calendarId,
-        timeMin: new Date(new Date().getFullYear(), 0, 1).toISOString(), // Start of current year
-        timeMax: new Date(new Date().getFullYear() + 1, 0, 1).toISOString(), // Start of next year
         showDeleted: false,
-        singleEvents: true,
-        maxResults: 2500,
-        orderBy: "startTime",
+        singleEvents: false
       });
+
+      if (!response || !response.result || !response.result.items) {
+        console.warn("Invalid response from Google Calendar API:", response);
+        return [];
+      }
 
       console.log(`Successfully fetched ${response.result.items?.length || 0} events`);
       return response.result.items;
@@ -442,6 +463,16 @@ export const createEvent = async (calendarId, event) => {
   return executeWithTokenRefresh(async () => {
     try {
       console.log("Creating event in Google Calendar:", { calendarId, event });
+      
+      // Validar que el evento tenga los campos requeridos
+      if (!event.summary) {
+        throw new Error("Event must have a summary (name)");
+      }
+      
+      if (!event.start || !event.end) {
+        throw new Error("Event must have start and end times");
+      }
+      
       const response = await window.gapi.client.calendar.events.insert({
         calendarId: calendarId,
         resource: event,
@@ -461,14 +492,39 @@ export const createEvent = async (calendarId, event) => {
 };
 
 export const updateEvent = async (calendarId, eventId, event) => {
+  if (!calendarId || !eventId || !event) {
+    throw new Error("Calendar ID, event ID, and event object are required");
+  }
+
   return executeWithTokenRefresh(async () => {
     try {
-      console.log(`Updating event ${eventId} in calendar ${calendarId}`);
+      console.log(`Updating event ${eventId} in calendar ${calendarId}`, event);
+      
+      // Validar que el evento tenga los campos requeridos
+      if (!event.summary) {
+        throw new Error("Event must have a summary (name)");
+      }
+      
+      if (!event.start || !event.end) {
+        throw new Error("Event must have start and end times");
+      }
+      
+      // Asegurar que el ID del evento esté incluido en el objeto
+      const eventWithId = {
+        ...event,
+        id: eventId
+      };
+      
       const response = await window.gapi.client.calendar.events.update({
         calendarId: calendarId,
         eventId: eventId,
-        resource: event,
+        resource: eventWithId,
       });
+      
+      if (!response || !response.result) {
+        throw new Error("Invalid response from Google Calendar API");
+      }
+      
       console.log("Event updated successfully:", response.result);
       return response.result;
     } catch (error) {
@@ -479,14 +535,21 @@ export const updateEvent = async (calendarId, eventId, event) => {
 };
 
 export const deleteEvent = async (calendarId, eventId) => {
+  if (!calendarId || !eventId) {
+    throw new Error("Calendar ID and event ID are required");
+  }
+
   return executeWithTokenRefresh(async () => {
     try {
       console.log(`Deleting event ${eventId} from calendar ${calendarId}`);
-      await window.gapi.client.calendar.events.delete({
+      
+      const response = await window.gapi.client.calendar.events.delete({
         calendarId: calendarId,
         eventId: eventId,
       });
+      
       console.log("Event deleted successfully");
+      return true;
     } catch (error) {
       console.error("Error deleting event:", error);
       throw error;

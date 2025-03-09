@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -10,20 +10,28 @@ import {
   Autocomplete,
   Chip,
   Typography,
+  Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
 } from "@mui/material";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
-import { ChromePicker } from "react-color";
+import { GlobalContext } from "../context/GlobalContext";
 
 const EventForm = ({ open, onClose, onSubmit, event = null }) => {
+  const { calendarColors, loadingColors } = useContext(GlobalContext);
   const [formData, setFormData] = useState({
     name: "",
     startDate: new Date(),
     description: "",
-    color: "#ffffff",
+    colorId: null,
     tags: [],
   });
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const [tagInput, setTagInput] = useState("");
+  const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (event) {
@@ -32,7 +40,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
         name: event.name || "",
         startDate: event.startDate || new Date(),
         description: event.description || "",
-        color: event.color || "#ffffff",
+        colorId: event.colorId || null,
         tags: event.tags || [],
       });
     } else {
@@ -40,16 +48,52 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
         name: "",
         startDate: new Date(),
         description: "",
-        color: "#ffffff",
+        colorId: null,
         tags: [],
       });
     }
+    // Limpiar errores al abrir el formulario
+    setErrors({});
+    setSubmitting(false);
   }, [event, open]);
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    // Validar nombre
+    if (!formData.name || formData.name.trim() === "") {
+      newErrors.name = "El nombre del evento es obligatorio";
+    }
+    
+    // Validar fecha
+    if (!formData.startDate || !(formData.startDate instanceof Date) || isNaN(formData.startDate.getTime())) {
+      newErrors.startDate = "La fecha de inicio no es válida";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("Submitting form data:", formData);
-    onSubmit(formData);
+    setSubmitting(true);
+    
+    if (!validateForm()) {
+      setSubmitting(false);
+      return;
+    }
+    
+    // Crear una copia limpia de los datos del formulario
+    const cleanedFormData = {
+      name: formData.name.trim(),
+      startDate: formData.startDate,
+      description: formData.description?.trim() || "",
+      colorId: formData.colorId,
+      tags: formData.tags.map(tag => tag.trim()).filter(tag => tag.length > 0),
+    };
+    
+    console.log("Submitting form data:", cleanedFormData);
+    onSubmit(cleanedFormData);
   };
 
   const handleAddTag = (tag) => {
@@ -69,9 +113,9 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
     });
   };
 
-  const handleColorChange = (color) => {
-    console.log("Color changed:", color);
-    setFormData({ ...formData, color: color.hex });
+  const handleColorChange = (colorId) => {
+    console.log("Color ID changed:", colorId);
+    setFormData({ ...formData, colorId });
   };
 
   return (
@@ -88,6 +132,9 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
               }
               required
               fullWidth
+              error={!!errors.name}
+              helperText={errors.name}
+              disabled={submitting}
             />
 
             <DateTimePicker
@@ -96,7 +143,14 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
               onChange={(newValue) =>
                 setFormData({ ...formData, startDate: newValue })
               }
-              slotProps={{ textField: { fullWidth: true } }}
+              slotProps={{ 
+                textField: { 
+                  fullWidth: true,
+                  error: !!errors.startDate,
+                  helperText: errors.startDate
+                } 
+              }}
+              disabled={submitting}
             />
 
             <TextField
@@ -108,41 +162,43 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
               multiline
               rows={4}
               fullWidth
+              disabled={submitting}
             />
 
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>
-                Color del evento
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Box 
-                  sx={{ 
-                    width: 40, 
-                    height: 40, 
-                    backgroundColor: formData.color || '#ffffff',
-                    border: '1px solid #ccc',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setShowColorPicker(!showColorPicker)}
-                />
-                <Button
-                  variant="outlined"
-                  onClick={() => setShowColorPicker(!showColorPicker)}
-                >
-                  {showColorPicker ? "Cerrar selector" : "Elegir color"}
-                </Button>
-              </Box>
-              {showColorPicker && (
-                <Box sx={{ position: "relative", zIndex: 2, mt: 1 }}>
-                  <ChromePicker
-                    color={formData.color || '#ffffff'}
-                    onChange={handleColorChange}
-                    disableAlpha={true}
-                  />
+            <FormControl fullWidth disabled={submitting || loadingColors}>
+              <InputLabel id="event-color-label">Color del evento</InputLabel>
+              <Select
+                labelId="event-color-label"
+                value={formData.colorId || ""}
+                onChange={(e) => handleColorChange(e.target.value || null)}
+                label="Color del evento"
+              >
+                <MenuItem value="">
+                  <em>Predeterminado</em>
+                </MenuItem>
+                {calendarColors && Object.entries(calendarColors).map(([id, colorData]) => (
+                  <MenuItem key={id} value={id}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Box 
+                        sx={{ 
+                          width: 20, 
+                          height: 20, 
+                          backgroundColor: colorData.background,
+                          border: `1px solid ${colorData.foreground}`,
+                          borderRadius: '4px'
+                        }}
+                      />
+                      <span>Color {id}</span>
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+              {loadingColors && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                  <CircularProgress size={20} />
                 </Box>
               )}
-            </Box>
+            </FormControl>
 
             <Box>
               <Autocomplete
@@ -153,6 +209,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
                 }
                 options={[]}
                 freeSolo
+                disabled={submitting}
                 renderTags={(value, getTagProps) =>
                   value.map((option, index) => (
                     <Chip
@@ -182,8 +239,13 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="contained" color="primary">
+          <Button onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button 
+            type="submit" 
+            variant="contained" 
+            color="primary"
+            disabled={submitting}
+          >
             {event ? "Update" : "Create"}
           </Button>
         </DialogActions>

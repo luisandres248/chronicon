@@ -15,14 +15,14 @@ import {
   Button,
   Divider,
 } from "@mui/material";
-import { Edit, Delete, Repeat, CalendarMonth, Palette } from "@mui/icons-material";
+import { Edit, Delete, Repeat, CalendarMonth } from "@mui/icons-material";
 import { format } from "date-fns";
 import { GlobalContext } from "../context/GlobalContext";
 import { calculateEventStats, formatTimeSince } from "../services/eventService";
 
 const EventCard = ({ event, onEdit, onDelete }) => {
   const navigate = useNavigate();
-  const { events, config } = useContext(GlobalContext);
+  const { events, config, calendarColors } = useContext(GlobalContext);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
 
   // Calcular estadísticas del evento usando la función del servicio
@@ -61,8 +61,16 @@ const EventCard = ({ event, onEdit, onDelete }) => {
     }
   };
 
+  // Obtener el color del evento desde la API de Google Calendar
+  const getEventColor = () => {
+    if (!event.colorId || !calendarColors) {
+      return null;
+    }
+    
+    return calendarColors[event.colorId]?.background || null;
+  };
+
   // Determinar si el color es claro u oscuro para ajustar el color del texto
-  // Usando el algoritmo WCAG para calcular el contraste
   const isLightColor = (color) => {
     if (!color) return true;
     
@@ -89,152 +97,164 @@ const EventCard = ({ event, onEdit, onDelete }) => {
     return luminance > 0.5;
   };
 
+  // Obtener el color de fondo del evento
+  const backgroundColor = getEventColor();
+  
   // Determinar el color del texto basado en el color de fondo y el modo oscuro
   const isDarkMode = config?.darkMode;
   
   // Colores para texto en modo claro
-  const lightModeTextColor = event.color ? 
-    (isLightColor(event.color) ? 'rgba(0, 0, 0, 0.87)' : '#ffffff') : 
+  const lightModeTextColor = backgroundColor ? 
+    (isLightColor(backgroundColor) ? 'rgba(0, 0, 0, 0.87)' : '#ffffff') : 
     'rgba(0, 0, 0, 0.87)';
-  const lightModeSecondaryTextColor = event.color ? 
-    (isLightColor(event.color) ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.7)') : 
+  const lightModeSecondaryTextColor = backgroundColor ? 
+    (isLightColor(backgroundColor) ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.7)') : 
     'rgba(0, 0, 0, 0.6)';
   
   // Colores para texto en modo oscuro
-  const darkModeTextColor = event.color ? 
-    (isLightColor(event.color) ? 'rgba(0, 0, 0, 0.87)' : '#ffffff') : 
-    '#f8fafc'; // Texto claro para modo oscuro
-  const darkModeSecondaryTextColor = event.color ? 
-    (isLightColor(event.color) ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.7)') : 
-    '#cbd5e1'; // Texto secundario para modo oscuro
+  const darkModeTextColor = backgroundColor ? 
+    (isLightColor(backgroundColor) ? 'rgba(0, 0, 0, 0.87)' : '#ffffff') : 
+    '#ffffff';
+  const darkModeSecondaryTextColor = backgroundColor ? 
+    (isLightColor(backgroundColor) ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.7)') : 
+    'rgba(255, 255, 255, 0.7)';
   
-  // Usar los colores según el modo
-  const textColor = event.color ? 
-    (isLightColor(event.color) ? 'rgba(0, 0, 0, 0.87)' : '#ffffff') : 
-    (isDarkMode ? darkModeTextColor : lightModeTextColor);
-  const secondaryTextColor = event.color ? 
-    (isLightColor(event.color) ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.7)') : 
-    (isDarkMode ? darkModeSecondaryTextColor : lightModeSecondaryTextColor);
+  // Seleccionar el conjunto de colores según el modo
+  const textColor = isDarkMode ? darkModeTextColor : lightModeTextColor;
+  const secondaryTextColor = isDarkMode ? darkModeSecondaryTextColor : lightModeSecondaryTextColor;
+
+  // Determinar el color de fondo de la tarjeta
+  const cardBackgroundColor = backgroundColor || (isDarkMode ? '#293548' : '#ffffff');
+  
+  // Determinar el color de los iconos
+  const iconColor = textColor;
 
   return (
     <>
       <Card
-        onClick={handleCardClick}
         sx={{
-          minHeight: 200,
           cursor: "pointer",
-          backgroundColor: event.color || "#ffffff",
-          position: "relative",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: cardBackgroundColor,
+          color: textColor,
+          transition: "transform 0.2s, box-shadow 0.2s",
           "&:hover": {
+            transform: "translateY(-4px)",
             boxShadow: 6,
           },
-          border: eventStats?.isFirstOccurrence ? '2px solid #1976d2' : 'none',
-          color: textColor,
         }}
+        onClick={handleCardClick}
       >
-        <CardContent>
-          <Box sx={{ position: "absolute", top: 8, right: 8 }}>
-            <IconButton size="small" onClick={handleEditClick} sx={{ color: textColor }}>
-              <Edit />
-            </IconButton>
-            <IconButton size="small" onClick={handleDeleteClick} sx={{ color: textColor }}>
-              <Delete />
-            </IconButton>
-          </Box>
-
-          <Typography variant="h6" component="div" gutterBottom sx={{ color: textColor }}>
-            {event.name || "Untitled Event"}
-          </Typography>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <CalendarMonth fontSize="small" sx={{ mr: 0.5, opacity: 0.7, color: textColor }} />
-            <Typography variant="body2" sx={{ color: secondaryTextColor }}>
-              {formatDate(event.startDate)}
-            </Typography>
-          </Box>
-
-          {event.color && (
-            <Box 
-              sx={{ 
-                display: 'inline-block',
-                width: 16, 
-                height: 16, 
-                backgroundColor: event.color,
-                border: `1px solid ${secondaryTextColor}`,
-                borderRadius: '4px',
-                mb: 1,
-                ml: 0.5
+        <CardContent sx={{ flexGrow: 1, pb: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              mb: 1,
+            }}
+          >
+            <Typography
+              variant="h6"
+              component="div"
+              sx={{
+                fontWeight: "bold",
+                color: textColor,
+                flexGrow: 1,
+                mr: 1,
               }}
-            />
-          )}
-
-          {eventStats && eventStats.totalOccurrences > 1 && (
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Repeat fontSize="small" sx={{ mr: 0.5, opacity: 0.7, color: textColor }} />
-              <Typography variant="body2" sx={{ color: secondaryTextColor }}>
-                {eventStats.isFirstOccurrence 
-                  ? `Primera de ${eventStats.totalOccurrences} ocurrencias` 
-                  : `Ocurrencia ${eventStats.occurrenceNumber} de ${eventStats.totalOccurrences}`}
-              </Typography>
-            </Box>
-          )}
-
-          <Divider sx={{ my: 1, borderColor: secondaryTextColor }} />
-
-          {eventStats && (
-            <Typography variant="body2" sx={{ fontWeight: 'medium', mb: 1, color: textColor }}>
-              {eventStats.isFirstOccurrence 
-                ? `Hace ${formatTimeSince(eventStats)}` 
-                : eventStats.daysSincePrevious 
-                  ? `${eventStats.daysSincePrevious} días después de la anterior` 
-                  : ''}
+            >
+              {event.name}
             </Typography>
-          )}
+            <Box>
+              <IconButton
+                size="small"
+                onClick={handleEditClick}
+                sx={{ color: iconColor }}
+              >
+                <Edit fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={handleDeleteClick}
+                sx={{ color: iconColor }}
+              >
+                <Delete fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+
+          <Typography
+            variant="body2"
+            color={secondaryTextColor}
+            sx={{ mb: 1, fontSize: "0.875rem" }}
+          >
+            <CalendarMonth
+              fontSize="small"
+              sx={{ verticalAlign: "middle", mr: 0.5, fontSize: "1rem" }}
+            />
+            {formatDate(event.startDate)}
+          </Typography>
 
           {event.description && (
             <Typography
               variant="body2"
+              color={secondaryTextColor}
               sx={{
-                mb: 2,
-                maxHeight: "3em",
+                mb: 1.5,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 display: "-webkit-box",
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: "vertical",
-                color: secondaryTextColor,
               }}
             >
               {event.description}
             </Typography>
           )}
 
+          {eventStats && (
+            <Box sx={{ mt: 1 }}>
+              <Divider sx={{ my: 1 }} />
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: "medium", color: textColor }}
+              >
+                {eventStats.isFirstOccurrence
+                  ? `Hace ${formatTimeSince(eventStats)}`
+                  : `Ocurrencia ${eventStats.occurrenceNumber} de ${eventStats.totalOccurrences}`}
+              </Typography>
+
+              {eventStats.averageGapDays && (
+                <Typography variant="body2" color={secondaryTextColor}>
+                  <Repeat
+                    fontSize="small"
+                    sx={{ verticalAlign: "middle", mr: 0.5, fontSize: "1rem" }}
+                  />
+                  Promedio: cada {eventStats.averageGapDays} días
+                </Typography>
+              )}
+
+              {eventStats.daysSincePrevious && (
+                <Typography variant="body2" color={secondaryTextColor}>
+                  {eventStats.daysSincePrevious} días desde anterior
+                </Typography>
+              )}
+            </Box>
+          )}
+
           {event.tags && event.tags.length > 0 && (
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: 8,
-                right: 8,
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 0.5,
-                justifyContent: "flex-end",
-                maxWidth: "calc(100% - 32px)",
-              }}
-            >
-              {event.tags.map((tag, index) => (
+            <Box sx={{ mt: 1, display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+              {event.tags.map((tag) => (
                 <Chip
-                  key={`${tag}-${index}`}
+                  key={tag}
                   label={tag}
                   size="small"
                   sx={{
-                    fontSize: "0.7rem",
-                    height: "20px",
-                    backgroundColor: isLightColor(event.color) ? "rgba(0, 0, 0, 0.08)" : "rgba(255, 255, 255, 0.16)",
+                    backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)",
                     color: textColor,
-                    "& .MuiChip-label": {
-                      padding: "0 8px",
-                    },
                   }}
                 />
               ))}
@@ -243,21 +263,17 @@ const EventCard = ({ event, onEdit, onDelete }) => {
         </CardContent>
       </Card>
 
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Delete Event</DialogTitle>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Confirmar eliminación</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete "{event.name}"? This action cannot
-            be undone.
+            ¿Estás seguro de que deseas eliminar el evento "{event.name}"?
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancelar</Button>
           <Button onClick={handleConfirmDelete} color="error" autoFocus>
-            Delete
+            Eliminar
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo } from "react";
+import React, { useState, useEffect, useContext, useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -36,7 +36,7 @@ import {
   ZoomIn,
   ZoomOut
 } from "@mui/icons-material";
-import { format, differenceInDays, differenceInMonths, differenceInYears, differenceInSeconds, differenceInHours, differenceInMinutes, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, getMonth, getYear, isSameDay } from "date-fns";
+import { format, differenceInDays, differenceInMonths, differenceInYears, differenceInSeconds, differenceInHours, differenceInMinutes, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, getMonth, getYear, isSameDay, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { GlobalContext } from "../context/GlobalContext";
 import { groupEventsByName, formatTimeSince, createEventObject } from "../services/eventService";
@@ -185,40 +185,188 @@ const StatChip = ({ title, values, icon, color = "default", variant = "outlined"
   );
 };
 
+// Componente para mostrar un día en el calendario
+const CalendarDay = React.memo(({ day, eventIndex, inRange, isOutside, eventColorToUse, theme, daySize }) => {
+  const hasEvent = eventIndex !== -1;
+  const isFirstOccurrence = eventIndex === 0;
+  const isToday = isSameDay(day, new Date());
+  
+  // Definimos colores para el día actual y días fuera de rango
+  const todayColors = {
+    light: {
+      background: '#e3f2fd',
+      border: '#2196f3'
+    },
+    dark: {
+      background: '#1a237e',
+      border: '#3f51b5'
+    }
+  };
+
+  const outsideColors = {
+    light: {
+      background: '#f5f5f5',
+      border: '#e0e0e0'
+    },
+    dark: {
+      background: '#424242',
+      border: '#616161'
+    }
+  };
+  
+  return (
+    <Box 
+      sx={{
+        width: `${daySize}px`,
+        height: `${daySize}px`,
+        backgroundColor: isToday
+          ? theme.palette.mode === 'dark' 
+            ? todayColors.dark.background
+            : todayColors.light.background
+          : isOutside
+            ? theme.palette.mode === 'dark'
+              ? outsideColors.dark.background
+              : outsideColors.light.background
+          : hasEvent 
+            ? (isFirstOccurrence 
+              ? eventColorToUse 
+              : theme.palette.mode === 'dark' 
+                ? alpha(eventColorToUse, 0.7)
+                : alpha(eventColorToUse, 0.5))
+            : inRange
+              ? theme.palette.mode === 'dark'
+                ? alpha(eventColorToUse, 0.15)
+                : alpha(eventColorToUse, 0.1)
+              : 'transparent',
+        borderRadius: '4px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+        m: 0.2,
+        border: isToday
+          ? `2px solid ${theme.palette.mode === 'dark' ? todayColors.dark.border : todayColors.light.border}`
+          : isOutside
+            ? `1px solid ${theme.palette.mode === 'dark' ? outsideColors.dark.border : outsideColors.light.border}`
+            : hasEvent 
+              ? `1px solid ${eventColorToUse}`
+              : inRange
+                ? `1px solid ${alpha(eventColorToUse, 0.3)}`
+                : `1px solid ${theme.palette.divider}`,
+        boxShadow: isToday 
+          ? `0 0 5px ${alpha(theme.palette.mode === 'dark' ? todayColors.dark.border : todayColors.light.border, 0.5)}` 
+          : 'none',
+      }}
+    >
+      {/* Solo mostramos el número del día si es hoy o tiene un evento */}
+      {(isToday || hasEvent) && (
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            fontSize: `${daySize / 2.5}px`,
+            color: isToday
+              ? theme.palette.mode === 'dark' 
+                ? alpha(todayColors.dark.border, 0.9)
+                : alpha(todayColors.light.border, 0.9)
+              : hasEvent 
+                ? theme.palette.getContrastText(
+                    isFirstOccurrence 
+                      ? eventColorToUse 
+                      : theme.palette.mode === 'dark' 
+                        ? alpha(eventColorToUse, 0.7)
+                        : alpha(eventColorToUse, 0.5)
+                  )
+                : theme.palette.text.secondary,
+            fontWeight: isToday || hasEvent ? 'bold' : 'normal',
+          }}
+        >
+          {format(day, 'd')}
+        </Typography>
+      )}
+      
+      {hasEvent && (
+        <Box 
+          sx={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: `${daySize / 4}px`,
+            height: `${daySize / 4}px`,
+            borderRadius: '50%',
+            backgroundColor: isFirstOccurrence 
+              ? theme.palette.mode === 'dark' ? '#fff' : '#000'
+              : theme.palette.mode === 'dark' ? alpha('#fff', 0.7) : alpha('#000', 0.7),
+            opacity: isFirstOccurrence ? 1 : 0.7,
+            transform: 'translate(25%, -25%)',
+          }}
+        />
+      )}
+    </Box>
+  );
+});
+
 // Componente para mostrar un mes en el calendario personalizado
-const MonthCalendar = ({ month, highlightedDates, eventColor, monthsPerRow, size }) => {
+const MonthCalendar = React.memo(({ month, highlightedDates, eventColor, monthsPerRow, size, calendarColors }) => {
   const theme = useTheme();
   const defaultColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3';
-  const eventColorToUse = eventColor || defaultColor;
+  
+  // Usar el color del evento desde calendarColors si está disponible
+  const getEventColor = useCallback(() => {
+    if (!eventColor) return defaultColor;
+    
+    // Si eventColor es un colorId y tenemos calendarColors, usar el color correspondiente
+    if (calendarColors && calendarColors[eventColor]) {
+      return calendarColors[eventColor].background;
+    }
+    
+    // Si no, usar el color directamente
+    return eventColor;
+  }, [eventColor, calendarColors, defaultColor]);
+  
+  const eventColorToUse = useMemo(() => getEventColor(), [getEventColor]);
   
   // Calcular días del mes
-  const daysInMonth = eachDayOfInterval({
-    start: startOfMonth(month),
-    end: endOfMonth(month)
-  });
+  const daysInMonth = useMemo(() => {
+    return eachDayOfInterval({
+      start: startOfMonth(month),
+      end: endOfMonth(month)
+    });
+  }, [month]);
   
   // Determinar si un día tiene un evento
-  const getEventIndex = (day) => {
+  const getEventIndex = useCallback((day) => {
     return highlightedDates.findIndex(d => isSameDay(d, day));
-  };
+  }, [highlightedDates]);
   
   // Determinar si un día está entre la primera ocurrencia y hoy
-  const isInActiveRange = (day) => {
+  const isInActiveRange = useCallback((day) => {
     if (!highlightedDates.length) return false;
-    const firstDate = highlightedDates[0];
-    const today = new Date();
+    const firstDate = highlightedDates[0]; // Usamos la fecha exacta del primer evento
+    const today = new Date(); // Usamos la fecha actual exacta
     return day >= firstDate && day <= today;
-  };
+  }, [highlightedDates]);
+
+  // Determinar si un día está en el mes pero fuera del rango activo
+  const isOutsideActiveRange = useCallback((day) => {
+    if (!highlightedDates.length) return true;
+    const firstDate = startOfDay(highlightedDates[0]); // Normalizamos a inicio del día
+    const today = endOfDay(new Date()); // Normalizamos a fin del día actual
+    return day < firstDate || day > today;
+  }, [highlightedDates]);
   
   // Calcular tamaño de los días basado en el parámetro size (1-100)
-  const daySize = 16 + (size / 10); // 16px mínimo, aumenta con el tamaño
+  // Aumentamos el factor de escala para que el tamaño tenga más impacto
+  const daySize = 20 + (size / 5); // Ahora el tamaño va de 22px a 40px
+  
+  // Memoizar el nombre del mes para evitar recálculos
+  const monthName = useMemo(() => format(month, 'MMMM', { locale: es }), [month]);
   
   return (
     <Box 
       sx={{ 
-        p: 1, 
+        p: 0.75,
         width: `${100 / monthsPerRow}%`,
-        minWidth: '200px',
+        minWidth: '180px',
         boxSizing: 'border-box'
       }}
     >
@@ -226,131 +374,78 @@ const MonthCalendar = ({ month, highlightedDates, eventColor, monthsPerRow, size
         variant="caption" 
         sx={{ 
           display: 'block', 
-          mb: 1, 
+          mb: 0.5,
           fontWeight: 500,
           textAlign: 'center',
           color: theme.palette.text.secondary
         }}
       >
-        {format(month, 'MMMM', { locale: es })}
+        {monthName}
       </Typography>
       
       <Box 
         sx={{ 
           display: 'grid',
           gridTemplateColumns: 'repeat(7, 1fr)',
-          gap: '2px',
+          gap: 0,
+          justifyItems: 'center',
+          alignItems: 'center',
+          mx: 'auto',
+          width: 'fit-content',
         }}
       >
         {daysInMonth.map(day => {
           const eventIndex = getEventIndex(day);
-          const hasEvent = eventIndex !== -1;
-          const isFirstOccurrence = eventIndex === 0;
           const inRange = isInActiveRange(day);
+          const isOutside = isOutsideActiveRange(day);
           
           return (
-            <Box 
+            <CalendarDay 
               key={day.toString()}
-              sx={{
-                width: `${daySize}px`,
-                height: `${daySize}px`,
-                backgroundColor: hasEvent 
-                  ? (isFirstOccurrence 
-                    ? eventColorToUse 
-                    : theme.palette.mode === 'dark' 
-                      ? theme.palette.secondary.dark 
-                      : theme.palette.secondary.light)
-                  : inRange 
-                    ? theme.palette.mode === 'dark'
-                      ? alpha(eventColorToUse, 0.15)
-                      : alpha(eventColorToUse, 0.1)
-                    : 'transparent',
-                borderRadius: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                margin: '1px',
-                border: hasEvent 
-                  ? `1px solid ${eventColorToUse}`
-                  : inRange
-                    ? `1px solid ${alpha(eventColorToUse, 0.3)}`
-                    : '1px solid transparent',
-              }}
-            >
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  fontSize: `${daySize / 2.5}px`,
-                  color: hasEvent 
-                    ? theme.palette.getContrastText(
-                        isFirstOccurrence 
-                          ? eventColorToUse 
-                          : theme.palette.mode === 'dark' 
-                            ? theme.palette.secondary.dark 
-                            : theme.palette.secondary.light
-                      )
-                    : theme.palette.text.secondary,
-                  opacity: inRange || hasEvent ? 1 : 0.5,
-                }}
-              >
-                {format(day, 'd')}
-              </Typography>
-              
-              {hasEvent && (
-                <Box
-                  sx={{
-                    position: 'absolute',
-                    top: '2px',
-                    right: '2px',
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: isFirstOccurrence 
-                      ? theme.palette.common.white
-                      : eventColorToUse,
-                    border: isFirstOccurrence 
-                      ? `1px solid ${eventColorToUse}`
-                      : 'none',
-                  }}
-                />
-              )}
-            </Box>
+              day={day}
+              eventIndex={eventIndex}
+              inRange={inRange}
+              isOutside={isOutside}
+              eventColorToUse={eventColorToUse}
+              theme={theme}
+              daySize={daySize}
+            />
           );
         })}
       </Box>
     </Box>
   );
-};
+});
 
-// Componente para mostrar un separador de año
-const YearSeparator = ({ year }) => {
+// Componente para separar años en el calendario
+const YearSeparator = React.memo(({ year }) => {
   const theme = useTheme();
   
   return (
     <Box sx={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      width: '100%', 
-      my: 2,
-      px: 2
+      position: 'relative', 
+      my: 2, // Reducimos el margen vertical de 3 a 2
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
     }}>
-      <Divider sx={{ flexGrow: 1 }} />
+      <Divider sx={{ width: '100%' }} />
       <Typography 
-        variant="subtitle2" 
+        variant="h6" 
+        component="span"
         sx={{ 
-          px: 2, 
-          fontWeight: 400,
-          color: theme.palette.text.secondary,
-          fontSize: '0.9rem'
+          position: 'absolute',
+          backgroundColor: theme.palette.background.paper,
+          px: 2,
+          fontWeight: 'bold',
+          color: theme.palette.text.primary
         }}
       >
         {year}
       </Typography>
-      <Divider sx={{ flexGrow: 1 }} />
     </Box>
   );
-};
+});
 
 function EventCalendar() {
   const location = useLocation();
@@ -362,7 +457,8 @@ function EventCalendar() {
     calendar,
     user,
     setUser,
-    setCalendar
+    setCalendar,
+    calendarColors
   } = useContext(GlobalContext);
   const [selectedEvent, setSelectedEvent] = useState("");
   const [highlightedDates, setHighlightedDates] = useState([]);
@@ -381,6 +477,7 @@ function EventCalendar() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [popupBlocked, setPopupBlocked] = useState(false);
+  const [isDescendingOrder, setIsDescendingOrder] = useState(true); // Por defecto, orden descendente
   const theme = useTheme();
 
   // Agrupar eventos por nombre usando la función del servicio
@@ -427,6 +524,7 @@ function EventCalendar() {
         minutesSinceFirst: differenceInMinutes(today, firstOccurrence.startDate),
         hoursSinceFirst: differenceInHours(today, firstOccurrence.startDate),
         tags: firstOccurrence.tags || [],
+        colorId: firstOccurrence.colorId || null,
       };
 
       // Si hay más de una ocurrencia, calcular promedios
@@ -450,47 +548,72 @@ function EventCalendar() {
     }
   }, [selectedEvent, events, eventsByName]);
 
-  // Generar los meses a mostrar en el calendario
-  const calendarMonths = useMemo(() => {
-    if (!eventStats || !eventOccurrences.length) return [];
-    
-    const firstDate = eventOccurrences[0].startDate;
-    const today = new Date();
-    const months = [];
-    
-    // Agrupar por año y mes
-    const yearMonths = {};
-    
-    let currentDate = startOfMonth(firstDate);
-    const endDate = startOfMonth(today);
-    
-    while (currentDate <= endDate) {
-      const year = getYear(currentDate);
-      if (!yearMonths[year]) {
-        yearMonths[year] = [];
-      }
-      
-      yearMonths[year].push(new Date(currentDate));
-      currentDate = addMonths(currentDate, 1);
-    }
-    
-    return yearMonths;
-  }, [eventStats, eventOccurrences]);
-
-  // Ajustar meses por fila basado en el tamaño
-  useEffect(() => {
-    // Ajustar meses por fila basado en el tamaño del calendario
-    if (calendarSize < 30) {
+  // Función para manejar el cambio de tamaño del calendario
+  const handleSizeChange = (event, newValue) => {
+    setCalendarSize(newValue);
+    // Ajustar el número de meses por fila según el tamaño
+    if (newValue < 30) {
       setMonthsPerRow(4);
-    } else if (calendarSize < 60) {
+    } else if (newValue < 60) {
       setMonthsPerRow(3);
-    } else if (calendarSize < 80) {
+    } else if (newValue < 80) {
       setMonthsPerRow(2);
     } else {
       setMonthsPerRow(1);
     }
-  }, [calendarSize]);
+  };
 
+  // Función para cambiar el orden de visualización
+  const toggleSortOrder = () => {
+    setIsDescendingOrder(!isDescendingOrder);
+  };
+
+  // Generar los meses para el calendario de manera optimizada
+  const calendarMonths = useMemo(() => {
+    if (!highlightedDates.length) return { years: [], monthsByYear: {} };
+
+    const firstDate = highlightedDates[0];
+    const today = new Date();
+    
+    // Crear un array de meses desde la primera ocurrencia hasta hoy
+    const months = [];
+    let currentMonth = startOfMonth(firstDate);
+    
+    // Sin límite de meses, mostrar todos desde la primera ocurrencia
+    while (currentMonth <= today) {
+      months.push(currentMonth);
+      currentMonth = addMonths(currentMonth, 1);
+    }
+    
+    // Agrupar meses por año
+    const yearMonths = {};
+    months.forEach(month => {
+      const year = getYear(month);
+      if (!yearMonths[year]) {
+        yearMonths[year] = [];
+      }
+      yearMonths[year].push(month);
+    });
+    
+    // Ordenar los años según la preferencia del usuario
+    const sortedYears = Object.keys(yearMonths).map(Number).sort((a, b) => 
+      isDescendingOrder ? b - a : a - b
+    );
+    
+    // Crear un nuevo objeto con los años ordenados
+    const orderedYearMonths = {};
+    sortedYears.forEach(year => {
+      // Ordenar los meses dentro de cada año según la preferencia del usuario
+      orderedYearMonths[year] = yearMonths[year].sort((a, b) => {
+        const monthA = getMonth(a);
+        const monthB = getMonth(b);
+        return isDescendingOrder ? monthB - monthA : monthA - monthB;
+      });
+    });
+    
+    return { years: sortedYears, monthsByYear: orderedYearMonths };
+  }, [highlightedDates, isDescendingOrder]); // Añadimos isDescendingOrder como dependencia
+  
   // Escuchar eventos de bloqueo de popup
   useEffect(() => {
     const handlePopupBlocked = (event) => {
@@ -609,10 +732,6 @@ function EventCalendar() {
 
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
-  };
-
-  const handleSizeChange = (event, newValue) => {
-    setCalendarSize(newValue);
   };
 
   // Formatear tiempo transcurrido en diferentes formatos
@@ -839,38 +958,58 @@ function EventCalendar() {
             )}
           </Grid>
           
-          {/* Control deslizante para ajustar el tamaño */}
+          {/* Controles para el calendario */}
           <Grid item xs={12}>
             <Box sx={{ 
               display: 'flex', 
               alignItems: 'center',
+              justifyContent: 'space-between',
               mt: 1,
               px: 2
             }}>
-              <ZoomOut fontSize="small" />
-              <Slider
-                value={calendarSize}
-                onChange={handleSizeChange}
-                aria-labelledby="calendar-size-slider"
-                valueLabelDisplay="auto"
-                step={5}
-                min={10}
-                max={100}
-                sx={{ 
-                  mx: 2,
-                  '& .MuiSlider-thumb': {
-                    width: 14,
-                    height: 14,
-                  },
-                  '& .MuiSlider-track': {
-                    height: 4,
-                  },
-                  '& .MuiSlider-rail': {
-                    height: 4,
-                  }
-                }}
-              />
-              <ZoomIn fontSize="small" />
+              {/* Control de zoom */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                flexGrow: 1
+              }}>
+                <ZoomOut fontSize="small" />
+                <Slider
+                  value={calendarSize}
+                  onChange={handleSizeChange}
+                  aria-labelledby="calendar-size-slider"
+                  valueLabelDisplay="auto"
+                  step={1}
+                  min={10}
+                  max={100}
+                  sx={{ 
+                    mx: 2,
+                    '& .MuiSlider-thumb': {
+                      width: 10,
+                      height: 10,
+                    },
+                    '& .MuiSlider-track': {
+                      height: 2,
+                    },
+                    '& .MuiSlider-rail': {
+                      height: 2,
+                    }
+                  }}
+                />
+                <ZoomIn fontSize="small" />
+              </Box>
+              
+              {/* Botón para cambiar el orden */}
+              <Tooltip title={isDescendingOrder ? "Cambiar a orden ascendente" : "Cambiar a orden descendente"}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={toggleSortOrder}
+                  startIcon={isDescendingOrder ? <KeyboardArrowDown /> : <KeyboardArrowDown sx={{ transform: 'rotate(180deg)' }} />}
+                  sx={{ ml: 2 }}
+                >
+                </Button>
+              </Tooltip>
             </Box>
           </Grid>
         </Grid>
@@ -879,7 +1018,7 @@ function EventCalendar() {
       {/* Calendario personalizado */}
       {eventStats && eventOccurrences.length > 0 && (
         <Paper elevation={3} sx={{ p: 2 }}>
-          {Object.entries(calendarMonths).map(([year, months]) => (
+          {calendarMonths.years.map(year => (
             <Box key={year}>
               <YearSeparator year={year} />
               <Box sx={{ 
@@ -887,14 +1026,15 @@ function EventCalendar() {
                 flexWrap: 'wrap',
                 justifyContent: 'flex-start'
               }}>
-                {months.map(month => (
+                {calendarMonths.monthsByYear[year].map(month => (
                   <MonthCalendar 
                     key={month.toString()}
                     month={month}
                     highlightedDates={highlightedDates}
-                    eventColor={selectedEventObject?.color}
+                    eventColor={eventStats.colorId}
                     monthsPerRow={monthsPerRow}
                     size={calendarSize}
+                    calendarColors={calendarColors}
                   />
                 ))}
               </Box>
