@@ -28,6 +28,36 @@ const EventCard = ({ event, onEdit, onDelete }) => {
   // Calcular estadísticas del evento usando la función del servicio
   const eventStats = calculateEventStats(event, events);
 
+  // Helper function to format days into a readable string
+  const formatDaysAgo = (days) => {
+    if (days === null || days === undefined || isNaN(days)) return ""; // Handle null, undefined, or NaN
+    if (days === 0) return "Hoy";
+    if (days === 1) return "Hace 1 día";
+    
+    const years = Math.floor(days / 365);
+    const months = Math.floor((days % 365) / 30);
+    const remainingDays = Math.floor((days % 365) % 30);
+
+    let resultParts = [];
+    if (years > 0) {
+      resultParts.push(`${years} ${years === 1 ? "año" : "años"}`);
+    }
+    if (months > 0) {
+      resultParts.push(`${months} ${months === 1 ? "mes" : "meses"}`);
+    }
+    if (remainingDays > 0 || (years === 0 && months === 0 && days > 1) ) { // Show days if it's the only unit or if there are other units
+      resultParts.push(`${remainingDays} ${remainingDays === 1 ? "día" : "días"}`);
+    }
+    
+    if (resultParts.length === 0 && days > 1) { // Should only happen if days is > 1 and not 0 or 1
+        resultParts.push(`${days} ${days === 1 ? "día" : "días"}`);
+    }
+
+
+    return `Hace ${resultParts.join(", ")}`;
+  };
+
+
   const handleCardClick = (e) => {
     if (!e.target.closest("button")) {
       navigate("/calendar", { state: { selectedEvent: event.name } });
@@ -226,6 +256,12 @@ const EventCard = ({ event, onEdit, onDelete }) => {
                   ? `Hace ${formatTimeSince(eventStats)}`
                   : `Ocurrencia ${eventStats.occurrenceNumber} de ${eventStats.totalOccurrences}`}
               </Typography>
+
+              {!eventStats.isFirstOccurrence && eventStats.totalOccurrences > 1 && eventStats.daysSinceLast !== undefined && (
+                <Typography variant="caption" color={secondaryTextColor} sx={{ display: 'block', mt: 0.5 }}>
+                  Última vez (serie): {formatDaysAgo(eventStats.daysSinceLast)}
+                </Typography>
+              )}
 
               {eventStats.averageGapDays && (
                 <Typography variant="body2" color={secondaryTextColor}>

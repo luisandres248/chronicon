@@ -9,9 +9,26 @@ import { parseGoogleEvent } from "../services/eventService";
 
 export const GlobalContext = createContext();
 
+const USER_CONFIG_STORAGE_KEY = "chronicon_user_config";
+
+const defaultConfig = {
+  darkMode: false,
+  firstDayOfWeek: "sunday", // Default first day of the week
+};
+
 export const GlobalProvider = ({ children }) => {
-  const [config, setConfig] = useState({
-    darkMode: false,
+  const [config, setConfig] = useState(() => {
+    try {
+      const storedConfig = localStorage.getItem(USER_CONFIG_STORAGE_KEY);
+      if (storedConfig) {
+        const parsedConfig = JSON.parse(storedConfig);
+        // Merge with defaults to ensure all keys are present
+        return { ...defaultConfig, ...parsedConfig };
+      }
+    } catch (error) {
+      console.error("Error loading user config from localStorage:", error);
+    }
+    return defaultConfig;
   });
   const [user, setUser] = useState(null);
   const [calendar, setCalendar] = useState(null);
@@ -123,7 +140,13 @@ export const GlobalProvider = ({ children }) => {
   }, [calendar, user]);
 
   const updateConfig = (newConfig) => {
-    setConfig({ ...config, ...newConfig });
+    const updatedConfig = { ...config, ...newConfig };
+    setConfig(updatedConfig);
+    try {
+      localStorage.setItem(USER_CONFIG_STORAGE_KEY, JSON.stringify(updatedConfig));
+    } catch (error) {
+      console.error("Error saving user config to localStorage:", error);
+    }
   };
 
   const addEvent = (event) => {

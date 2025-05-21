@@ -248,7 +248,7 @@ export const checkSignInStatus = () => {
   return { profile, calendar };
 };
 
-export const signIn = () => {
+export const signIn = (onStatusUpdate) => {
   if (!tokenClient) {
     throw new Error("Token client not initialized");
   }
@@ -286,7 +286,7 @@ export const signIn = () => {
           const userProfile = await userResponse.json();
 
           // Get or create Chronicon calendar
-          const calendar = await getOrCreateChroniconCalendar();
+          const calendar = await getOrCreateChroniconCalendar(onStatusUpdate);
 
           // Store everything in session storage
           sessionStorage.setItem("gapi-token", token);
@@ -369,13 +369,16 @@ export const signOut = async () => {
   }
 };
 
-export const getOrCreateChroniconCalendar = async () => {
+export const getOrCreateChroniconCalendar = async (onStatusUpdate) => {
   return executeWithTokenRefresh(async () => {
     try {
+      onStatusUpdate?.("Searching for Chronicon calendar...");
       console.log("Fetching calendar list");
       const response = await window.gapi.client.calendar.calendarList.list();
       if (!response?.result?.items) {
-        throw new Error("Failed to fetch calendar list");
+        const errorMsg = "Failed to fetch calendar list";
+        onStatusUpdate?.(`Error finding or creating Chronicon calendar: ${errorMsg}`, true);
+        throw new Error(errorMsg);
       }
 
       let chroniconCalendar = response.result.items.find(
@@ -383,6 +386,7 @@ export const getOrCreateChroniconCalendar = async () => {
       );
 
       if (!chroniconCalendar) {
+        onStatusUpdate?.("Chronicon calendar not found. Creating a new one...");
         console.log("Chronicon calendar not found, creating new one");
         const created = await window.gapi.client.calendar.calendars.insert({
           resource: {
@@ -398,14 +402,17 @@ export const getOrCreateChroniconCalendar = async () => {
           resource: { id: chroniconCalendar.id },
         });
         
+        onStatusUpdate?.("Successfully created and added Chronicon calendar.");
         console.log("Chronicon calendar created successfully:", chroniconCalendar);
       } else {
+        onStatusUpdate?.("Successfully found Chronicon calendar.");
         console.log("Found existing Chronicon calendar:", chroniconCalendar);
       }
 
       return chroniconCalendar;
     } catch (error) {
       console.error("Calendar creation error:", error);
+      onStatusUpdate?.(`Error finding or creating Chronicon calendar: ${error.message || error}`, true);
       throw error;
     }
   });

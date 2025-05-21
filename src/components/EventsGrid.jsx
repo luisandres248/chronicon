@@ -62,7 +62,9 @@ const EventsGrid = () => {
       setAuthLoading(true);
       setAuthError(null);
       setPopupBlocked(false);
-      const response = await signIn();
+      const response = await signIn((message, isError) => {
+        setAuthError(isError ? `Error: ${message}` : `Status: ${message}`);
+      });
       if (response?.userProfile) {
         console.log("Sign in successful:", response);
         setUser(response.userProfile);
