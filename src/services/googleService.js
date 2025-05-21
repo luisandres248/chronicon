@@ -28,10 +28,10 @@ const isTokenExpiringSoon = () => {
 
 const loadStoredSession = () => {
   try {
-    const token = sessionStorage.getItem("gapi-token");
-    const tokenTimestamp = sessionStorage.getItem("gapi-token-timestamp");
-    const profile = JSON.parse(sessionStorage.getItem("user-profile"));
-    const calendar = JSON.parse(sessionStorage.getItem("chronicon-calendar"));
+    const token = localStorage.getItem("gapi-token");
+    const tokenTimestamp = localStorage.getItem("gapi-token-timestamp");
+    const profile = JSON.parse(localStorage.getItem("user-profile"));
+    const calendar = JSON.parse(localStorage.getItem("chronicon-calendar"));
 
     if (token && window.gapi?.client) {
       window.gapi.client.setToken({ access_token: token });
@@ -49,7 +49,10 @@ const loadStoredSession = () => {
     return { token, profile, calendar };
   } catch (error) {
     console.error("Error loading stored session:", error);
-    sessionStorage.clear();
+    localStorage.removeItem("gapi-token");
+    localStorage.removeItem("gapi-token-timestamp");
+    localStorage.removeItem("user-profile");
+    localStorage.removeItem("chronicon-calendar");
     if (window.gapi?.client) {
       window.gapi.client.setToken(null);
     }
@@ -79,8 +82,8 @@ export const refreshToken = () => {
         if (response.error) {
           console.error("Token refresh error:", response);
           tokenRefreshInProgress = false;
-          sessionStorage.removeItem("gapi-token");
-          sessionStorage.removeItem("gapi-token-timestamp");
+          localStorage.removeItem("gapi-token");
+          localStorage.removeItem("gapi-token-timestamp");
           if (window.gapi?.client) {
             window.gapi.client.setToken(null);
           }
@@ -93,8 +96,8 @@ export const refreshToken = () => {
           window.gapi.client.setToken({ access_token: token });
           
           // Guardar el nuevo token y su timestamp
-          sessionStorage.setItem("gapi-token", token);
-          sessionStorage.setItem("gapi-token-timestamp", Date.now().toString());
+          localStorage.setItem("gapi-token", token);
+          localStorage.setItem("gapi-token-timestamp", Date.now().toString());
           setTokenExpiryTime();
           
           console.log("Token refreshed successfully");
@@ -288,11 +291,11 @@ export const signIn = (onStatusUpdate) => {
           // Get or create Chronicon calendar
           const calendar = await getOrCreateChroniconCalendar(onStatusUpdate);
 
-          // Store everything in session storage
-          sessionStorage.setItem("gapi-token", token);
-          sessionStorage.setItem("gapi-token-timestamp", Date.now().toString());
-          sessionStorage.setItem("user-profile", JSON.stringify(userProfile));
-          sessionStorage.setItem(
+          // Store everything in localStorage
+          localStorage.setItem("gapi-token", token);
+          localStorage.setItem("gapi-token-timestamp", Date.now().toString());
+          localStorage.setItem("user-profile", JSON.stringify(userProfile));
+          localStorage.setItem(
             "chronicon-calendar",
             JSON.stringify(calendar)
           );
@@ -304,7 +307,10 @@ export const signIn = (onStatusUpdate) => {
         } catch (error) {
           console.error("Error during sign in:", error);
           // Clear any partial session data
-          sessionStorage.clear();
+          localStorage.removeItem("gapi-token");
+          localStorage.removeItem("gapi-token-timestamp");
+          localStorage.removeItem("user-profile");
+          localStorage.removeItem("chronicon-calendar");
           if (window.gapi?.client) {
             window.gapi.client.setToken(null);
           }
@@ -315,27 +321,21 @@ export const signIn = (onStatusUpdate) => {
       // Asignar el callback
       tokenClient.callback = handleAuthResponse;
 
-      // Intentar autenticación con popup primero
+      // Directly request the token. GSI's TokenClient will use the configured ux_mode (popup)
+      // and its internal fallbacks. The result will come to handleAuthResponse or the error_callback.
       try {
-        tokenClient.requestAccessToken({
-          prompt: "consent",
-          // Usar un callback vacío para evitar problemas con el popup
-          callback: "",
-        });
-      } catch (popupError) {
-        console.warn("Popup authentication failed, trying redirect:", popupError);
-        
-        // Si falla el popup, intentar con redirección
-        tokenClient.requestAccessToken({
-          prompt: "consent",
-          // Usar un callback vacío para evitar problemas con el popup
-          callback: "",
-          // Forzar redirección en lugar de popup
-          use_fedcm_for_prompt: false,
-        });
+        tokenClient.requestAccessToken({}); // Pass empty options object
+      } catch (error) {
+        // This catch is for immediate errors from calling requestAccessToken itself,
+        // not for errors from the async token acquisition process (which go to error_callback).
+        console.error("Error invoking tokenClient.requestAccessToken:", error);
+        reject(error); // Reject the signIn promise
       }
     } catch (error) {
-      console.error("Error requesting access token:", error);
+      // This outer catch is for errors in the Promise setup or other synchronous code,
+      // though most errors related to token request should be caught by the inner try/catch
+      // or handled by the GSI library's error_callback.
+      console.error("Error in signIn promise setup:", error);
       reject(error);
     }
   });
@@ -343,7 +343,7 @@ export const signIn = (onStatusUpdate) => {
 
 export const signOut = async () => {
   try {
-    const token = sessionStorage.getItem("gapi-token");
+    const token = localStorage.getItem("gapi-token");
     if (token) {
       try {
         await fetch(`https://oauth2.googleapis.com/revoke?token=${token}`, {
@@ -357,8 +357,11 @@ export const signOut = async () => {
       }
     }
 
-    // Clear session storage
-    sessionStorage.clear();
+    // Clear specific items from localStorage
+    localStorage.removeItem("gapi-token");
+    localStorage.removeItem("gapi-token-timestamp");
+    localStorage.removeItem("user-profile");
+    localStorage.removeItem("chronicon-calendar");
 
     // Clear gapi token
     if (window.gapi?.client) {
