@@ -116,7 +116,7 @@ const CalendarDay = React.memo(({ day, eventIndex, inRange, isOutside, eventColo
         boxShadow: isToday ? `0 0 5px ${alpha(theme.palette.mode === 'dark' ? todayColors.dark.border : todayColors.light.border, 0.5)}` : 'none',
       }}
     >
-      {hasEvent && ( // Day number is rendered only if hasEvent is true
+      {(hasEvent || isToday) && ( // Day number is rendered if it has an event or is today
         <Typography 
           variant="caption" 
           sx={{ 
@@ -137,17 +137,21 @@ const CalendarDay = React.memo(({ day, eventIndex, inRange, isOutside, eventColo
 });
 
 // Componente para mostrar un mes en el calendario personalizado
-const MonthCalendar = React.memo(({ month, highlightedDates, eventColor, size, calendarColors, firstDayOfWeekValue }) => {
+const MonthCalendar = React.memo(({ month, highlightedDates, eventColor, size, calendarColors }) => {
   const theme = useTheme();
   const defaultColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3';
   
   const getEventColor = useCallback(() => {
-    if (!eventColor) return defaultColor;
-    if (calendarColors && calendarColors[eventColor]) return calendarColors[eventColor].background;
-    return eventColor;
+    if (eventColor && calendarColors && calendarColors[eventColor]) {
+      return calendarColors[eventColor].background;
+    }
+    // Fallback to defaultColor if no eventColor or if eventColor not in calendarColors map
+    return defaultColor;
   }, [eventColor, calendarColors, defaultColor]);
   
   const eventColorToUse = useMemo(() => getEventColor(), [getEventColor]);
+  const firstDayOfWeekValue = 1; // 0 for Sunday, 1 for Monday. For 'es' locale, date-fns getDay() is 0 for Sun, 1 for Mon.
+                                 // Setting this to 1 makes the calendar grid start with Monday.
   
   const actualFirstOfMonth = startOfMonth(month);
   const daysInMonthArray = useMemo(() => eachDayOfInterval({ start: actualFirstOfMonth, end: endOfMonth(month) }), [actualFirstOfMonth, month]);
@@ -174,7 +178,7 @@ const MonthCalendar = React.memo(({ month, highlightedDates, eventColor, size, c
       );
     });
     return grid;
-  }, [actualFirstOfMonth, daysInMonthArray, firstDayOfWeekValue, highlightedDates, eventColorToUse, theme, size]);
+  }, [actualFirstOfMonth, daysInMonthArray, highlightedDates, eventColorToUse, theme, size]);
 
   const monthName = useMemo(() => format(month, 'MMMM', { locale: es }), [month]);
   
@@ -374,18 +378,14 @@ function EventCalendar() {
   const uniqueEventNames = Object.keys(eventsByName);
   const hardcodedDaySize = 24; 
 
-  let firstDayOfWeekValue = 0; 
-  if (config.firstDayOfWeek === "monday") firstDayOfWeekValue = 1;
-  else if (config.firstDayOfWeek === "saturday") firstDayOfWeekValue = 6;
-
   const defaultEventColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3';
   const streamEventColorToUse = useMemo(() => {
-    if (!eventStats?.colorId) return defaultEventColor;
-    if (calendarColors && calendarColors[eventStats.colorId]) {
+    if (eventStats?.colorId && calendarColors && calendarColors[eventStats.colorId]) {
       return calendarColors[eventStats.colorId].background;
     }
-    return eventStats.colorId; 
-  }, [eventStats, calendarColors, defaultEventColor, theme.palette.mode]);
+    // Fallback to defaultColor if no colorId or if colorId not in calendarColors map
+    return defaultEventColor; 
+  }, [eventStats, calendarColors, defaultEventColor]); // theme.palette.mode is implicitly handled by defaultEventColor's definition
 
 
   return (
@@ -436,7 +436,6 @@ function EventCalendar() {
                         key={month.toString()} month={month} highlightedDates={highlightedDates}
                         eventColor={eventStats.colorId}
                         size={hardcodedDaySize} calendarColors={calendarColors}
-                        firstDayOfWeekValue={firstDayOfWeekValue}
                       />
                     ))}
                   </Box>
@@ -472,7 +471,7 @@ function EventCalendar() {
                <Typography sx={{ textAlign: 'center', p:2 }}>No hay datos para mostrar en la vista de stream.</Typography>
             )}
           </Paper>
-        </Fade>
+        </Slide>
       </Box>
       
       {selectedEventObject && <EventForm open={formOpen} onClose={() => setFormOpen(false)} onSubmit={handleUpdateEvent} event={selectedEventObject} />}
