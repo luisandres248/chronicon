@@ -18,7 +18,7 @@ import {
   CardContent,
   CardHeader,
 } from "@mui/material";
-import { DarkMode, WbSunny, CalendarMonth } from "@mui/icons-material";
+import { DarkMode, WbSunny } from "@mui/icons-material";
 import { GlobalContext } from "../context/GlobalContext";
 
 const Config = () => {
@@ -27,10 +27,6 @@ const Config = () => {
 
   const handleDarkModeChange = (event) => {
     updateConfig({ darkMode: event.target.checked });
-  };
-
-  const handleFirstDayChange = (event) => {
-    updateConfig({ firstDayOfWeek: event.target.value });
   };
 
   return (
@@ -73,42 +69,6 @@ const Config = () => {
               
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
                 El modo oscuro reduce la fatiga visual en entornos con poca luz y ahorra batería en dispositivos con pantallas OLED.
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <Card elevation={2}>
-            <CardHeader 
-              title="Calendario" 
-              sx={{ 
-                borderBottom: `1px solid ${theme.palette.divider}`,
-                '& .MuiCardHeader-title': {
-                  fontSize: '1.2rem',
-                  fontWeight: 500,
-                }
-              }}
-            />
-            <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <CalendarMonth sx={{ mr: 2, color: theme.palette.primary.main }} />
-                <FormControl fullWidth>
-                  <InputLabel id="first-day-label">Primer día de la semana</InputLabel>
-                  <Select
-                    labelId="first-day-label"
-                    value={config.firstDayOfWeek || "sunday"}
-                    onChange={handleFirstDayChange}
-                  >
-                    <MenuItem value="sunday">Domingo</MenuItem>
-                    <MenuItem value="monday">Lunes</MenuItem>
-                    <MenuItem value="saturday">Sábado</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-              
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Configura el primer día de la semana según tus preferencias regionales o personales.
               </Typography>
             </CardContent>
           </Card>

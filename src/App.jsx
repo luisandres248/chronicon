@@ -65,8 +65,8 @@ function AppContent() {
           ...(config.darkMode
             ? {
                 background: {
-                  default: "#1e293b",
-                  paper: "#293548",
+                  default: "#334155", // Slate 700
+                  paper: "#475569", // Slate 600
                 },
                 text: {
                   primary: "#f8fafc",

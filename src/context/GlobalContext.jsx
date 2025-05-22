@@ -13,7 +13,6 @@ const USER_CONFIG_STORAGE_KEY = "chronicon_user_config";
 
 const defaultConfig = {
   darkMode: false,
-  firstDayOfWeek: "sunday", // Default first day of the week
 };
 
 export const GlobalProvider = ({ children }) => {
@@ -22,7 +21,7 @@ export const GlobalProvider = ({ children }) => {
       const storedConfig = localStorage.getItem(USER_CONFIG_STORAGE_KEY);
       if (storedConfig) {
         const parsedConfig = JSON.parse(storedConfig);
-        // Merge with defaults to ensure all keys are present
+        delete parsedConfig.firstDayOfWeek; // Explicitly remove it
         return { ...defaultConfig, ...parsedConfig };
       }
     } catch (error) {

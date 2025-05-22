@@ -14,8 +14,8 @@ let tokenExpiryTime = null;
 
 // Almacenar el tiempo de expiración del token (1 hora desde la obtención)
 const setTokenExpiryTime = () => {
-  // Los tokens de Google típicamente expiran en 1 hora
-  tokenExpiryTime = Date.now() + 50 * 60 * 1000; // 50 minutos para tener margen
+  // Google tokens typically expire in 1 hour. Set our check for 55 minutes.
+  tokenExpiryTime = Date.now() + 55 * 60 * 1000; 
   console.log("Token expiry time set to:", new Date(tokenExpiryTime).toLocaleTimeString());
 };
 
@@ -38,11 +38,9 @@ const loadStoredSession = () => {
       
       // Restaurar el tiempo de expiración si existe
       if (tokenTimestamp) {
-        const elapsedTime = Date.now() - parseInt(tokenTimestamp, 10);
-        // Si han pasado más de 50 minutos, considerar el token como expirado
-        if (elapsedTime < 50 * 60 * 1000) {
-          tokenExpiryTime = parseInt(tokenTimestamp, 10) + 60 * 60 * 1000;
-        }
+        // Calculate expiry as 55 minutes from the original grant time
+        tokenExpiryTime = parseInt(tokenTimestamp, 10) + 55 * 60 * 1000;
+        console.log("Restored token expiry time to:", new Date(tokenExpiryTime).toLocaleTimeString());
       }
     }
 
@@ -65,7 +63,9 @@ export const refreshToken = () => {
   return new Promise((resolve, reject) => {
     if (tokenRefreshInProgress) {
       console.log("Token refresh already in progress");
-      return reject(new Error("Token refresh already in progress"));
+      // It's better to return a promise that resolves/rejects based on the ongoing refresh,
+      // but for now, rejecting is simpler than implementing a queue or listener.
+      return reject(new Error("Token refresh already in progress")); 
     }
     
     if (!tokenClient) {
@@ -73,69 +73,48 @@ export const refreshToken = () => {
       return reject(new Error("Token client not initialized"));
     }
     
-    try {
-      tokenRefreshInProgress = true;
-      console.log("Refreshing token...");
-      
-      // Función para manejar la respuesta de renovación
-      const handleRefreshResponse = async (response) => {
-        if (response.error) {
-          console.error("Token refresh error:", response);
-          tokenRefreshInProgress = false;
-          localStorage.removeItem("gapi-token");
-          localStorage.removeItem("gapi-token-timestamp");
-          if (window.gapi?.client) {
-            window.gapi.client.setToken(null);
-          }
-          reject(response);
-          return;
+    tokenRefreshInProgress = true;
+    console.log("Refreshing token...");
+
+    // Set the callback for this specific refresh operation
+    tokenClient.callback = async (response) => { // Renamed to handleRefreshResponse internally
+      tokenRefreshInProgress = false; // Ensure this is set regardless of outcome
+      if (response.error) {
+        console.error("Token refresh error:", response);
+        localStorage.removeItem("gapi-token");
+        localStorage.removeItem("gapi-token-timestamp");
+        if (window.gapi?.client) {
+          window.gapi.client.setToken(null);
         }
-        
-        try {
-          const token = response.access_token;
-          window.gapi.client.setToken({ access_token: token });
-          
-          // Guardar el nuevo token y su timestamp
-          localStorage.setItem("gapi-token", token);
-          localStorage.setItem("gapi-token-timestamp", Date.now().toString());
-          setTokenExpiryTime();
-          
-          console.log("Token refreshed successfully");
-          tokenRefreshInProgress = false;
-          resolve(token);
-        } catch (error) {
-          console.error("Error during token refresh:", error);
-          tokenRefreshInProgress = false;
-          reject(error);
-        }
-      };
-      
-      // Asignar el callback
-      tokenClient.callback = handleRefreshResponse;
-      
-      // Intentar renovación con popup primero
-      try {
-        // Solicitar token sin prompt para renovación silenciosa
-        tokenClient.requestAccessToken({ 
-          prompt: "",
-          // Usar un callback vacío para evitar problemas con el popup
-          callback: "",
-        });
-      } catch (popupError) {
-        console.warn("Popup refresh failed, trying redirect:", popupError);
-        
-        // Si falla el popup, intentar con redirección
-        tokenClient.requestAccessToken({ 
-          prompt: "",
-          // Usar un callback vacío para evitar problemas con el popup
-          callback: "",
-          // Forzar redirección en lugar de popup
-          use_fedcm_for_prompt: false,
-        });
+        reject(response); // Reject the outer promise
+        return;
       }
+      
+      try {
+        const token = response.access_token;
+        window.gapi.client.setToken({ access_token: token });
+        
+        localStorage.setItem("gapi-token", token);
+        localStorage.setItem("gapi-token-timestamp", Date.now().toString());
+        setTokenExpiryTime(); // Uses the new 55-min logic
+        
+        console.log("Token refreshed successfully");
+        resolve(token); // Resolve the outer promise
+      } catch (error) {
+        console.error("Error processing token refresh response:", error);
+        reject(error); // Reject the outer promise
+      }
+    };
+    
+    try {
+      // Attempt silent refresh. The GSI library handles the UX mode (popup/redirect)
+      // based on its initialization and internal logic when prompt is empty.
+      tokenClient.requestAccessToken({ prompt: "" }); 
     } catch (error) {
-      console.error("Error requesting access token:", error);
+      // This catch is for immediate errors from calling requestAccessToken itself.
+      console.error("Error invoking tokenClient.requestAccessToken for refresh:", error);
       tokenRefreshInProgress = false;
+      tokenClient.callback = ""; // Clear callback if request failed immediately
       reject(error);
     }
   });

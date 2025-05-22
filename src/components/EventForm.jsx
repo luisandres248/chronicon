@@ -76,24 +76,42 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setSubmitting(true);
+
+    // Process pending tagInput before validation or final object creation
+    let currentTags = [...formData.tags];
+    const trimmedTagInput = tagInput.trim();
+
+    if (trimmedTagInput !== "" && !currentTags.includes(trimmedTagInput)) {
+      // If there's text in input & not already in tags list, add it
+      currentTags.push(trimmedTagInput);
+      // Update formData.tags state so it's consistent for validation and UI
+      // Also, clear the input field once the tag is processed.
+      // This state update will make sure validateForm() sees the latest tags.
+      setFormData(prevData => ({ ...prevData, tags: [...currentTags] }));
+      setTagInput(""); 
+    }
     
+    setSubmitting(true);
+
+    // Now, validateForm will use the potentially updated formData.tags
     if (!validateForm()) {
       setSubmitting(false);
       return;
     }
     
-    // Crear una copia limpia de los datos del formulario
+    // formData.tags should now be up-to-date.
     const cleanedFormData = {
       name: formData.name.trim(),
       startDate: formData.startDate,
       description: formData.description?.trim() || "",
       colorId: formData.colorId,
-      tags: formData.tags.map(tag => tag.trim()).filter(tag => tag.length > 0),
+      tags: formData.tags.map(tag => tag.trim()).filter(tag => tag.length > 0), 
     };
     
     console.log("Submitting form data:", cleanedFormData);
     onSubmit(cleanedFormData);
+    // Note: setSubmitting(false) is handled by the useEffect that depends on 'open'
+    // which is generally fine as the form closes/resets.
   };
 
   const handleAddTag = (tag) => {

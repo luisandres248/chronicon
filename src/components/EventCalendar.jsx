@@ -2,7 +2,6 @@ import React, { useState, useEffect, useContext, useMemo, useCallback } from "re
 import { useLocation } from "react-router-dom";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-// import { DateCalendar } from "@mui/x-date-pickers/DateCalendar"; // No longer used
 import { 
   Select, 
   MenuItem, 
@@ -11,20 +10,17 @@ import {
   Paper, 
   Divider,
   CircularProgress,
-  // Badge, // No longer used
   Chip,
   IconButton,
   Tooltip,
-  // Zoom, // No longer used
   Grid,
   useTheme,
   Snackbar,
   Alert,
-  // Stack, // No longer used
   Button,
   ToggleButton,
   ToggleButtonGroup,
-  Fade // Added Fade
+  Slide // Add Slide
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { 
@@ -34,7 +30,6 @@ import {
   Repeat, 
   LocalOffer, 
   Update, 
-  // KeyboardArrowDown, // No longer used
   ViewStream, 
   ViewModule, 
 } from "@mui/icons-material";
@@ -121,7 +116,7 @@ const CalendarDay = React.memo(({ day, eventIndex, inRange, isOutside, eventColo
         boxShadow: isToday ? `0 0 5px ${alpha(theme.palette.mode === 'dark' ? todayColors.dark.border : todayColors.light.border, 0.5)}` : 'none',
       }}
     >
-      {hasEvent && ( // Day number is rendered only if hasEvent is true
+      {(hasEvent || isToday) && ( // Day number is rendered if it has an event or is today
         <Typography 
           variant="caption" 
           sx={{ 
@@ -142,17 +137,21 @@ const CalendarDay = React.memo(({ day, eventIndex, inRange, isOutside, eventColo
 });
 
 // Componente para mostrar un mes en el calendario personalizado
-const MonthCalendar = React.memo(({ month, highlightedDates, eventColor, monthsPerRow, size, calendarColors, firstDayOfWeekValue }) => {
+const MonthCalendar = React.memo(({ month, highlightedDates, eventColor, size, calendarColors }) => {
   const theme = useTheme();
   const defaultColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3';
   
   const getEventColor = useCallback(() => {
-    if (!eventColor) return defaultColor;
-    if (calendarColors && calendarColors[eventColor]) return calendarColors[eventColor].background;
-    return eventColor;
+    if (eventColor && calendarColors && calendarColors[eventColor]) {
+      return calendarColors[eventColor].background;
+    }
+    // Fallback to defaultColor if no eventColor or if eventColor not in calendarColors map
+    return defaultColor;
   }, [eventColor, calendarColors, defaultColor]);
   
   const eventColorToUse = useMemo(() => getEventColor(), [getEventColor]);
+  const firstDayOfWeekValue = 1; // 0 for Sunday, 1 for Monday. For 'es' locale, date-fns getDay() is 0 for Sun, 1 for Mon.
+                                 // Setting this to 1 makes the calendar grid start with Monday.
   
   const actualFirstOfMonth = startOfMonth(month);
   const daysInMonthArray = useMemo(() => eachDayOfInterval({ start: actualFirstOfMonth, end: endOfMonth(month) }), [actualFirstOfMonth, month]);
@@ -179,12 +178,12 @@ const MonthCalendar = React.memo(({ month, highlightedDates, eventColor, monthsP
       );
     });
     return grid;
-  }, [actualFirstOfMonth, daysInMonthArray, firstDayOfWeekValue, highlightedDates, eventColorToUse, theme, size]);
+  }, [actualFirstOfMonth, daysInMonthArray, highlightedDates, eventColorToUse, theme, size]);
 
   const monthName = useMemo(() => format(month, 'MMMM', { locale: es }), [month]);
   
   return (
-    <Box sx={{ p: 0.75, width: `${100 / monthsPerRow}%`, minWidth: '180px', boxSizing: 'border-box' }}>
+    <Box sx={{ p: 0.75, width: { xs: '100%', sm: '50%', md: '33.33%', lg: '25%' }, minWidth: '180px', boxSizing: 'border-box' }}>
       <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontWeight: 500, textAlign: 'center', color: theme.palette.text.secondary }}>
         {monthName}
       </Typography>
@@ -377,21 +376,16 @@ function EventCalendar() {
   if (!events.length) return <Box sx={{ p: 3 }}><Typography>No hay eventos disponibles. Crea uno en la vista de Grid.</Typography></Box>;
 
   const uniqueEventNames = Object.keys(eventsByName);
-  const hardcodedMonthsPerRow = 3; 
-  const hardcodedDaySize = 30; 
-
-  let firstDayOfWeekValue = 0; 
-  if (config.firstDayOfWeek === "monday") firstDayOfWeekValue = 1;
-  else if (config.firstDayOfWeek === "saturday") firstDayOfWeekValue = 6;
+  const hardcodedDaySize = 24; 
 
   const defaultEventColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3';
   const streamEventColorToUse = useMemo(() => {
-    if (!eventStats?.colorId) return defaultEventColor;
-    if (calendarColors && calendarColors[eventStats.colorId]) {
+    if (eventStats?.colorId && calendarColors && calendarColors[eventStats.colorId]) {
       return calendarColors[eventStats.colorId].background;
     }
-    return eventStats.colorId; 
-  }, [eventStats, calendarColors, defaultEventColor, theme.palette.mode]);
+    // Fallback to defaultColor if no colorId or if colorId not in calendarColors map
+    return defaultEventColor; 
+  }, [eventStats, calendarColors, defaultEventColor]); // theme.palette.mode is implicitly handled by defaultEventColor's definition
 
 
   return (
@@ -430,7 +424,7 @@ function EventCalendar() {
       
       {/* Container for Fade transitions - can be a simple Box or React.Fragment if no specific styling is needed */}
       <Box sx={{ position: 'relative' }}>
-        <Fade in={calendarViewMode === "traditional"} timeout={500} mountOnEnter unmountOnExit>
+        <Slide direction="down" in={calendarViewMode === "traditional"} timeout={500} mountOnEnter unmountOnExit>
           <Paper elevation={3} sx={{ p: 2, display: calendarViewMode === "traditional" ? 'block' : 'none' }}>
             {eventStats && eventOccurrences.length > 0 ? (
               calendarMonths.years.map(year => (
@@ -440,9 +434,8 @@ function EventCalendar() {
                     {calendarMonths.monthsByYear[year].map(month => (
                       <MonthCalendar 
                         key={month.toString()} month={month} highlightedDates={highlightedDates}
-                        eventColor={eventStats.colorId} monthsPerRow={hardcodedMonthsPerRow}
+                        eventColor={eventStats.colorId}
                         size={hardcodedDaySize} calendarColors={calendarColors}
-                        firstDayOfWeekValue={firstDayOfWeekValue}
                       />
                     ))}
                   </Box>
@@ -452,9 +445,9 @@ function EventCalendar() {
               <Typography sx={{ textAlign: 'center', p:2 }}>No hay datos para mostrar en la vista tradicional.</Typography>
             )}
           </Paper>
-        </Fade>
+        </Slide>
 
-        <Fade in={calendarViewMode === "stream"} timeout={500} mountOnEnter unmountOnExit>
+        <Slide direction="up" in={calendarViewMode === "stream"} timeout={500} mountOnEnter unmountOnExit>
           <Paper elevation={3} sx={{ p: 2, display: calendarViewMode === "stream" ? 'block' : 'none' }}>
             {eventStats && streamDays.length > 0 ? (
               <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-start', p: 1 }}>
@@ -478,7 +471,7 @@ function EventCalendar() {
                <Typography sx={{ textAlign: 'center', p:2 }}>No hay datos para mostrar en la vista de stream.</Typography>
             )}
           </Paper>
-        </Fade>
+        </Slide>
       </Box>
       
       {selectedEventObject && <EventForm open={formOpen} onClose={() => setFormOpen(false)} onSubmit={handleUpdateEvent} event={selectedEventObject} />}
