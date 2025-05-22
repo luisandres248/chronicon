@@ -249,6 +249,12 @@ export const signIn = (onStatusUpdate) => {
           const token = response.access_token;
           window.gapi.client.setToken({ access_token: token });
 
+          // Store the new token and its timestamp immediately
+          localStorage.setItem("gapi-token", token);
+          localStorage.setItem("gapi-token-timestamp", Date.now().toString());
+          setTokenExpiryTime(); // Update module-level expiry time for the new token
+          console.log("Token and expiry time set immediately after acquisition in signIn");
+
           // Get user info
           const userResponse = await fetch(
             "https://www.googleapis.com/oauth2/v3/userinfo",
@@ -279,8 +285,7 @@ export const signIn = (onStatusUpdate) => {
             JSON.stringify(calendar)
           );
           
-          // Establecer tiempo de expiración del token
-          setTokenExpiryTime();
+          // setTokenExpiryTime(); // This call is now redundant here, as it was called earlier.
 
           resolve({ userProfile, calendar });
         } catch (error) {
