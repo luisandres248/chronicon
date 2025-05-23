@@ -19,7 +19,7 @@ import {
 } from "@mui/material";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { GlobalContext } from "../context/GlobalContext";
-import logger from "../../utils/logger.js";
+import logger from "../utils/logger.js";
 
 const EventForm = ({ open, onClose, onSubmit, event = null }) => {
   const { calendarColors, loadingColors } = useContext(GlobalContext);
