@@ -40,10 +40,13 @@ import { groupEventsByName, createEventObject } from "../services/eventService";
 import { updateEvent as updateGoogleEvent, signIn } from "../services/googleService";
 import EventForm from "./EventForm";
 
-// Componente para mostrar estadísticas en chips interactivos
+/**
+ * StatChip component: Displays a piece of statistical data with an optional icon.
+ * If multiple values are provided, the chip becomes interactive, cycling through values on click.
+ */
 const StatChip = ({ title, values, icon }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [animating, setAnimating] = useState(false);
+  const [animating, setAnimating] = useState(false); // For a subtle click animation
   const theme = useTheme();
   const valueArray = Array.isArray(values) ? values : [values];
   const isInteractive = valueArray.length > 1;
@@ -89,34 +92,39 @@ const StatChip = ({ title, values, icon }) => {
   );
 };
 
-// Componente para mostrar un día en el calendario
+/**
+ * CalendarDay component: Renders a single day cell for the calendar views.
+ * Visual appearance changes based on whether it's today, an event occurrence, or outside the event's active range.
+ */
 const CalendarDay = React.memo(({ day, eventIndex, inRange, isOutside, eventColorToUse, theme, daySize }) => {
-  const hasEvent = eventIndex !== -1;
-  const isFirstOccurrence = eventIndex === 0;
+  const hasEvent = eventIndex !== -1; // True if this day is an occurrence of the selected event
+  const isFirstOccurrence = eventIndex === 0; // True if this is the first recorded occurrence
   const isToday = isSameDay(day, new Date());
   
+  // Define colors for different day states based on theme mode
   const todayColors = { light: { background: '#e3f2fd', border: '#2196f3' }, dark: { background: '#1a237e', border: '#3f51b5' } };
-  const outsideColors = { light: { background: '#f5f5f5', border: '#e0e0e0' }, dark: { background: '#424242', border: '#616161' } };
+  const outsideColors = { light: { background: '#f5f5f5', border: '#e0e0e0' }, dark: { background: '#424242', border: '#616161' } }; // For days outside the event range in stream view
   
   return (
     <Box 
       sx={{
         width: `${daySize}px`, height: `${daySize}px`,
         backgroundColor: isToday ? (theme.palette.mode === 'dark' ? todayColors.dark.background : todayColors.light.background)
-          : isOutside ? (theme.palette.mode === 'dark' ? outsideColors.dark.background : outsideColors.light.background)
-          : hasEvent ? (isFirstOccurrence ? eventColorToUse : (theme.palette.mode === 'dark' ? alpha(eventColorToUse, 0.7) : alpha(eventColorToUse, 0.5)))
-          : inRange ? (theme.palette.mode === 'dark' ? alpha(eventColorToUse, 0.15) : alpha(eventColorToUse, 0.1))
-          : 'transparent',
+          : isOutside ? (theme.palette.mode === 'dark' ? outsideColors.dark.background : outsideColors.light.background) // Style for days outside event range
+          : hasEvent ? (isFirstOccurrence ? eventColorToUse : (theme.palette.mode === 'dark' ? alpha(eventColorToUse, 0.7) : alpha(eventColorToUse, 0.5))) // Different opacity for subsequent occurrences
+          : inRange ? (theme.palette.mode === 'dark' ? alpha(eventColorToUse, 0.15) : alpha(eventColorToUse, 0.1)) // Light tint for days within the event's timespan but not an occurrence
+          : 'transparent', // Default for days with no special state
         borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', m: 0.2,
         border: isToday ? `2px solid ${theme.palette.mode === 'dark' ? todayColors.dark.border : todayColors.light.border}`
           : isOutside ? `1px solid ${theme.palette.mode === 'dark' ? outsideColors.dark.border : outsideColors.light.border}`
           : hasEvent ? `1px solid ${eventColorToUse}`
           : inRange ? `1px solid ${alpha(eventColorToUse, 0.3)}`
-          : `1px solid ${theme.palette.divider}`,
+          : `1px solid ${theme.palette.divider}`, // Default border
         boxShadow: isToday ? `0 0 5px ${alpha(theme.palette.mode === 'dark' ? todayColors.dark.border : todayColors.light.border, 0.5)}` : 'none',
       }}
     >
-      {(hasEvent || isToday) && ( // Day number is rendered if it has an event or is today
+      {/* Display day number if it's an event day or today */}
+      {(hasEvent || isToday) && ( 
         <Typography 
           variant="caption" 
           sx={{ 
@@ -136,25 +144,29 @@ const CalendarDay = React.memo(({ day, eventIndex, inRange, isOutside, eventColo
   );
 });
 
-// Componente para mostrar un mes en el calendario personalizado
+/**
+ * MonthCalendar component: Renders a single month's grid for the "traditional" calendar view.
+ * Displays days and highlights event occurrences.
+ */
 const MonthCalendar = React.memo(({ month, highlightedDates, eventColor, size, calendarColors }) => {
   const theme = useTheme();
-  const defaultColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3';
+  const defaultColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3'; // Default color if event color is not found
   
+  // Determines the background color for event days based on the event's colorId
   const getEventColor = useCallback(() => {
     if (eventColor && calendarColors && calendarColors[eventColor]) {
       return calendarColors[eventColor].background;
     }
-    // Fallback to defaultColor if no eventColor or if eventColor not in calendarColors map
-    return defaultColor;
+    return defaultColor; // Fallback if colorId is missing or not in map
   }, [eventColor, calendarColors, defaultColor]);
   
   const eventColorToUse = useMemo(() => getEventColor(), [getEventColor]);
-  const firstDayOfWeekValue = 1; // 0 for Sunday, 1 for Monday. For 'es' locale, date-fns getDay() is 0 for Sun, 1 for Mon.
-                                 // Setting this to 1 makes the calendar grid start with Monday.
+  
+  // Configuration for the start of the week (1 = Monday for 'es' locale with date-fns)
+  const firstDayOfWeekValue = 1; 
   
   const actualFirstOfMonth = startOfMonth(month);
-  const daysInMonthArray = useMemo(() => eachDayOfInterval({ start: actualFirstOfMonth, end: endOfMonth(month) }), [actualFirstOfMonth, month]);
+  const daysInMonthArray = useMemo(() => eachDayOfInterval({ start: actualFirstOfMonth, end: endOfMonth(month) }), [actualFirstOfMonth]);
   
   const monthGridDays = useMemo(() => {
     const grid = [];
@@ -194,6 +206,10 @@ const MonthCalendar = React.memo(({ month, highlightedDates, eventColor, size, c
   );
 });
 
+/**
+ * YearSeparator component: Displays a horizontal line with the year in the middle.
+ * Used in the traditional calendar view to separate different years.
+ */
 const YearSeparator = React.memo(({ year }) => {
   const theme = useTheme();
   return (
@@ -206,6 +222,10 @@ const YearSeparator = React.memo(({ year }) => {
   );
 });
 
+/**
+ * EventCalendar component: Main view for displaying event occurrences in different calendar formats.
+ * Allows users to select an event and view its history/statistics.
+ */
 function EventCalendar() {
   const location = useLocation();
   const { 
@@ -227,73 +247,118 @@ function EventCalendar() {
   const [calendarViewMode, setCalendarViewMode] = useState("traditional"); 
   const theme = useTheme();
 
+  // Memoized grouping of events by their names.
   const eventsByName = useMemo(() => groupEventsByName(events), [events]);
 
+  // Effect to set the selected event, prioritizing location state or the first event if none selected.
   useEffect(() => {
-    if (location.state?.selectedEvent) setSelectedEvent(location.state.selectedEvent);
-    else if (Object.keys(eventsByName).length > 0 && !selectedEvent) setSelectedEvent(Object.keys(eventsByName)[0]);
+    if (location.state?.selectedEvent) {
+      setSelectedEvent(location.state.selectedEvent);
+    } else if (Object.keys(eventsByName).length > 0 && !selectedEvent) {
+      setSelectedEvent(Object.keys(eventsByName)[0]);
+    }
   }, [location.state, eventsByName, selectedEvent]);
 
+  // Effect to update event occurrences, stats, and highlighted dates when the selected event or main events list changes.
   useEffect(() => {
-    if (!selectedEvent || !events.length) return;
+    if (!selectedEvent || !events.length) {
+      setHighlightedDates([]); 
+      setEventStats(null); 
+      setSelectedEventObject(null);
+      setEventOccurrences([]);
+      return;
+    }
+
     const occurrences = eventsByName[selectedEvent] || [];
     setEventOccurrences(occurrences);
+
     if (occurrences.length > 0) {
       const dates = occurrences.map(event => event.startDate);
       setHighlightedDates(dates);
+      
       const firstOccurrence = occurrences[0];
       const lastOccurrence = occurrences[occurrences.length - 1];
       const today = new Date();
+      
       const stats = {
-        firstDate: firstOccurrence.startDate, lastDate: lastOccurrence.startDate, totalOccurrences: occurrences.length,
-        daysSinceFirst: differenceInDays(today, firstOccurrence.startDate), monthsSinceFirst: differenceInMonths(today, firstOccurrence.startDate),
-        yearsSinceFirst: differenceInYears(today, firstOccurrence.startDate), daysSinceLast: differenceInDays(today, lastOccurrence.startDate),
-        secondsSinceFirst: differenceInSeconds(today, firstOccurrence.startDate), minutesSinceFirst: differenceInMinutes(today, firstOccurrence.startDate),
-        hoursSinceFirst: differenceInHours(today, firstOccurrence.startDate), tags: firstOccurrence.tags || [], colorId: firstOccurrence.colorId || null,
+        firstDate: firstOccurrence.startDate,
+        lastDate: lastOccurrence.startDate,
+        totalOccurrences: occurrences.length,
+        daysSinceFirst: differenceInDays(today, firstOccurrence.startDate),
+        monthsSinceFirst: differenceInMonths(today, firstOccurrence.startDate),
+        yearsSinceFirst: differenceInYears(today, firstOccurrence.startDate),
+        daysSinceLast: differenceInDays(today, lastOccurrence.startDate),
+        secondsSinceFirst: differenceInSeconds(today, firstOccurrence.startDate),
+        minutesSinceFirst: differenceInMinutes(today, firstOccurrence.startDate),
+        hoursSinceFirst: differenceInHours(today, firstOccurrence.startDate),
+        tags: firstOccurrence.tags || [],
+        colorId: firstOccurrence.colorId || null,
       };
+
       if (occurrences.length > 1) {
         let totalGapDays = 0;
-        for (let i = 1; i < occurrences.length; i++) totalGapDays += differenceInDays(occurrences[i].startDate, occurrences[i - 1].startDate);
+        for (let i = 1; i < occurrences.length; i++) {
+          totalGapDays += differenceInDays(occurrences[i].startDate, occurrences[i - 1].startDate);
+        }
         stats.averageGapDays = Math.round(totalGapDays / (occurrences.length - 1));
       }
-      setEventStats(stats); setSelectedEventObject(firstOccurrence);
+      
+      setEventStats(stats);
+      setSelectedEventObject(firstOccurrence); // Used for pre-filling the edit form
     } else {
-      setHighlightedDates([]); setEventStats(null); setSelectedEventObject(null);
+      setHighlightedDates([]);
+      setEventStats(null);
+      setSelectedEventObject(null);
     }
   }, [selectedEvent, events, eventsByName]);
 
+  // Memoized calculation for the months to display in the traditional calendar view.
+  // Generates an array of month start dates from the first event occurrence to today.
   const calendarMonths = useMemo(() => {
     if (!highlightedDates.length) return { years: [], monthsByYear: {} };
-    const firstDate = highlightedDates[0]; const today = new Date();
-    const months = []; let currentMonth = startOfMonth(firstDate);
-    while (currentMonth <= today) { months.push(currentMonth); currentMonth = addMonths(currentMonth, 1); }
+    
+    const firstDate = highlightedDates[0]; 
+    const today = new Date();
+    const months = []; 
+    let currentMonth = startOfMonth(firstDate);
+    
+    while (currentMonth <= today) { 
+      months.push(currentMonth); 
+      currentMonth = addMonths(currentMonth, 1); 
+    }
+    
     const yearMonths = {};
     months.forEach(month => {
       const year = getYear(month);
       if (!yearMonths[year]) yearMonths[year] = [];
       yearMonths[year].push(month);
     });
+    
     const sortedYears = Object.keys(yearMonths).map(Number).sort((a, b) => a - b);
     const orderedYearMonths = {};
     sortedYears.forEach(year => {
       orderedYearMonths[year] = yearMonths[year].sort((a, b) => getMonth(a) - getMonth(b));
     });
+    
     return { years: sortedYears, monthsByYear: orderedYearMonths };
   }, [highlightedDates]); 
 
-  // Data Preparation for Stream View
+  // Memoized data preparation for the "Stream" calendar view.
+  // Generates an array of all days from the first event occurrence to today, sorted reverse chronologically.
   const streamDays = useMemo(() => {
-    if (!eventStats || highlightedDates.length === 0) {
-      return [];
-    }
+    if (!eventStats || highlightedDates.length === 0) return [];
+    
     const firstEventDate = eventStats.firstDate;
     const today = startOfDay(new Date());
-    if (firstEventDate > today) return []; // Handle case where first event is in the future
-
+    
+    // Handle cases where the first event might be in the future (though less common for this view).
+    if (firstEventDate > today) return []; 
+    
     const daysArray = eachDayOfInterval({ start: firstEventDate, end: today });
-    return daysArray.sort((a, b) => b - a); // Sort in descending chronological order
+    return daysArray.sort((a, b) => b - a); // Sort descending (most recent first)
   }, [highlightedDates, eventStats]);
   
+  // Effect to listen for custom 'auth-popup-blocked' events dispatched by googleService.
   useEffect(() => {
     const handlePopupBlocked = (event) => {
       setPopupBlocked(true);
@@ -359,8 +424,9 @@ function EventCalendar() {
 
   const handleViewModeChange = (event, newMode) => { if (newMode !== null) setCalendarViewMode(newMode); };
 
-  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /></Box>;
-  if (error) return <Box sx={{ p: 3 }}><Typography color="error">{error}</Typography></Box>;
+  // Conditional rendering based on loading, error, user, or calendar states.
+  if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}><CircularProgress /></Box>;
+  if (error) return <Box sx={{ p: 3, textAlign: 'center' }}><Typography color="error">{error}</Typography></Box>;
   if (!user) {
     return (
       <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
@@ -376,23 +442,25 @@ function EventCalendar() {
   if (!events.length) return <Box sx={{ p: 3 }}><Typography>No hay eventos disponibles. Crea uno en la vista de Grid.</Typography></Box>;
 
   const uniqueEventNames = Object.keys(eventsByName);
-  const hardcodedDaySize = 24; 
+  const hardcodedDaySize = 24; // Fixed size for calendar day cells
 
+  // Determine the color for events in the stream view, falling back to a default if not specified.
   const defaultEventColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3';
   const streamEventColorToUse = useMemo(() => {
     if (eventStats?.colorId && calendarColors && calendarColors[eventStats.colorId]) {
       return calendarColors[eventStats.colorId].background;
     }
-    // Fallback to defaultColor if no colorId or if colorId not in calendarColors map
     return defaultEventColor; 
-  }, [eventStats, calendarColors, defaultEventColor]); // theme.palette.mode is implicitly handled by defaultEventColor's definition
+  }, [eventStats, calendarColors, defaultEventColor]);
 
 
   return (
     <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+      {/* Event Selection and Statistics Display */}
       <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
         <Grid container spacing={2}>
           <Grid item xs={12}>
+            {/* Dropdown to select the event to view */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <Select value={selectedEvent} onChange={handleEventChange} size="small" sx={{ minWidth: 200, maxWidth: 'fit-content', '& .MuiSelect-select': { display: 'flex', alignItems: 'center' }}} startAdornment={<CalendarMonth sx={{ mr: 1, opacity: 0.7 }} />}>
                 {uniqueEventNames.map((name) => (<MenuItem key={name} value={name}>{name}</MenuItem>))}
@@ -401,6 +469,7 @@ function EventCalendar() {
             </Box>
           </Grid>
           <Grid item xs={12}>
+            {/* Display event statistics if an event is selected */}
             {eventStats ? (
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 <StatChip title="Ocurrencias:" values={formatOccurrenceDates()} icon={<Repeat />} />
@@ -409,9 +478,10 @@ function EventCalendar() {
                 {eventStats.totalOccurrences > 1 && eventStats.averageGapDays && <StatChip title="Promedio entre ocurrencias:" values={[`${eventStats.averageGapDays} días`]} icon={<Repeat />} />}
                 {eventStats.tags && eventStats.tags.length > 0 && <StatChip title="Etiquetas:" values={[eventStats.tags.join(', ')]} icon={<LocalOffer />} />}
               </Box>
-            ) : <Typography variant="body2" color="text.secondary">Selecciona un evento para ver sus estadísticas</Typography>}
+            ) : <Typography variant="body2" color="text.secondary">Selecciona un evento para ver sus estadísticas.</Typography>}
           </Grid>
           <Grid item xs={12}>
+            {/* Toggle buttons to switch between Traditional and Stream calendar views */}
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1, px: 1, flexWrap: 'wrap', gap: 2 }}>
               <ToggleButtonGroup value={calendarViewMode} exclusive onChange={handleViewModeChange} aria-label="calendar view mode" size="small">
                 <ToggleButton value="traditional" aria-label="traditional view"><ViewModule sx={{ mr: 0.5 }} fontSize="small" />Tradicional</ToggleButton>
@@ -422,8 +492,9 @@ function EventCalendar() {
         </Grid>
       </Paper>
       
-      {/* Container for Fade transitions - can be a simple Box or React.Fragment if no specific styling is needed */}
+      {/* Calendar View Area with Slide transitions */}
       <Box sx={{ position: 'relative' }}>
+        {/* Traditional Calendar View (Year/Month based) */}
         <Slide direction="down" in={calendarViewMode === "traditional"} timeout={500} mountOnEnter unmountOnExit>
           <Paper elevation={3} sx={{ p: 2, display: calendarViewMode === "traditional" ? 'block' : 'none' }}>
             {eventStats && eventOccurrences.length > 0 ? (
@@ -447,6 +518,7 @@ function EventCalendar() {
           </Paper>
         </Slide>
 
+        {/* Stream Calendar View (Continuous flow of days) */}
         <Slide direction="up" in={calendarViewMode === "stream"} timeout={500} mountOnEnter unmountOnExit>
           <Paper elevation={3} sx={{ p: 2, display: calendarViewMode === "stream" ? 'block' : 'none' }}>
             {eventStats && streamDays.length > 0 ? (
@@ -458,8 +530,8 @@ function EventCalendar() {
                       key={day.toISOString()}
                       day={day}
                       eventIndex={eventIndex}
-                      inRange={true} 
-                      isOutside={false} 
+                      inRange={true} // In stream view, all displayed days are considered "in range"
+                      isOutside={false} // No "outside" days in stream view logic as it's a continuous flow
                       eventColorToUse={streamEventColorToUse}
                       theme={theme}
                       daySize={hardcodedDaySize}
@@ -474,8 +546,10 @@ function EventCalendar() {
         </Slide>
       </Box>
       
+      {/* Event Form Dialog for editing selected event */}
       {selectedEventObject && <EventForm open={formOpen} onClose={() => setFormOpen(false)} onSubmit={handleUpdateEvent} event={selectedEventObject} />}
       
+      {/* Snackbar for user feedback messages */}
       <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled">{snackbar.message}</Alert>
       </Snackbar>
