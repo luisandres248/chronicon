@@ -16,7 +16,7 @@ import {
   MenuItem,
   CircularProgress,
 } from "@mui/material";
-import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker"; // Changed from DateTimePicker
 import { GlobalContext } from "../context/GlobalContext";
 import logger from "../utils/logger.js";
 
@@ -148,7 +148,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => { // 
               disabled={submitting}
             />
 
-            <DateTimePicker
+            <DatePicker // Changed from DateTimePicker
               label="Start Date"
               value={formData.startDate}
               onChange={(newValue) =>

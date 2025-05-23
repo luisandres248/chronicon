@@ -23,7 +23,10 @@ import {
   Menu as MenuIcon, // Added MenuIcon
   GridView,
   CalendarMonth,
+  ExpandMore,
+  ExpandLess,
 } from "@mui/icons-material";
+import { Collapse } from "@mui/material"; // Added Collapse
 import { GlobalContext } from "../context/GlobalContext";
 import {
   initGoogleAPI,
@@ -38,6 +41,7 @@ const drawerWidth = 240;
 const Sidebar = () => {
   const { user, setUser, setCalendar, loading, config } = useContext(GlobalContext);
   const [open, setOpen] = useState(true);
+  const [isProfileExpanded, setIsProfileExpanded] = useState(false); // New state for profile section
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
   const theme = useTheme();
@@ -143,7 +147,7 @@ const Sidebar = () => {
               <Typography variant="h6" component="div" sx={{
                 fontFamily: 'serif',
                 textTransform: 'uppercase',
-                color: '#6A5F7A',
+                color: config?.theme === 'light' ? '#6A5F7A' : '#FFFFFF',
                 fontWeight: 'bold',
                 fontSize: '1.4rem', 
                 whiteSpace: 'nowrap',
@@ -166,27 +170,86 @@ const Sidebar = () => {
         <Divider sx={{ mb: open ? 1 : 0 }} /> 
 
         <List sx={{pt:0}}>
-          {/* User Avatar and Name Section - shown only when open */}
+          {/* Collapsible User Profile Section - shown only when sidebar is open and user is logged in */}
           {open && user && (
-            <>
-              <ListItem sx={{ justifyContent: "flex-start", flexDirection: 'column', alignItems: 'center', pt: 1, pb:1 }}>
-                <Avatar src={user?.picture} sx={{width: 48, height: 48, mb: 0.5}} />
-                <ListItemText 
-                    primary={user.name} 
-                    sx={{ 
-                      textAlign: 'center',
-                      "& .MuiListItemText-primary": {
+            <Box sx={{ px: 1, py: 1 }}> {/* Outer padding for the section */}
+              <ListItem 
+                button 
+                onClick={() => setIsProfileExpanded(!isProfileExpanded)} 
+                sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  borderRadius: '8px',
+                  py: 0.75, // Reduced padding
+                  px: 1, // Reduced padding
+                  mb: isProfileExpanded ? 0.5 : 0, // Margin bottom only if expanded
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, overflow: 'hidden' }}>
+                  <Avatar src={user?.picture} sx={{ width: 36, height: 36, mr: 1.5 }} />
+                  <ListItemText
+                    primary={user.name}
+                    primaryTypographyProps={{
+                      noWrap: !isProfileExpanded, // Truncate only when collapsed
+                      sx: { 
+                        fontWeight: 500, 
+                        fontSize: '0.875rem', 
                         color: theme.palette.text.primary,
-                        fontWeight: 500,
-                        fontSize: '0.875rem'
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
                       }
-                    }} 
+                    }}
+                    sx={{ my: 0 }} // Remove default margins
                   />
+                </Box>
+                <IconButton size="small" sx={{ ml: 0.5, color: theme.palette.text.secondary }}>
+                  {isProfileExpanded ? <ExpandLess /> : <ExpandMore />}
+                </IconButton>
               </ListItem>
+
+              <Collapse in={isProfileExpanded} timeout="auto" unmountOnExit>
+                <List component="div" disablePadding sx={{px: 1, pt: 0.5}}>
+                  <ListItemText
+                    primary={user.email}
+                    primaryTypographyProps={{
+                      variant: 'caption',
+                      sx: { 
+                        color: theme.palette.text.secondary, 
+                        textAlign: 'center',
+                        display: 'block', // Ensure it takes full width
+                        mb: 1, // Margin bottom for spacing
+                        wordBreak: 'break-all', // Break long emails
+                      }
+                    }}
+                  />
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    color="secondary"
+                    size="small"
+                    onClick={handleSignOut}
+                    disabled={authLoading}
+                    sx={{ 
+                      textTransform: 'none', 
+                      mb: 1, 
+                      borderColor: theme.palette.error.main, // Use error color for border
+                      color: theme.palette.error.main, // Use error color for text
+                      '&:hover': {
+                        backgroundColor: theme.palette.mode === 'dark' ? 'rgba(244, 67, 54, 0.1)' : 'rgba(211, 47, 47, 0.08)', // Lighter red for hover
+                        borderColor: theme.palette.error.dark,
+                      }
+                    }}
+                  >
+                    {authLoading ? "Signing Out..." : "Sign Out"}
+                  </Button>
+                </List>
+              </Collapse>
               <Divider sx={{ my: 1 }} />
-            </>
+            </Box>
           )}
-          {/* User Avatar (small) - shown only when closed */}
+          {/* User Avatar (small) - shown only when sidebar is fully closed */}
           {!open && user && (
              <>
               <ListItem sx={{ justifyContent: "center", py:1.5 }}>
@@ -222,7 +285,7 @@ const Sidebar = () => {
             }}>
               <GridView />
             </ListItemIcon>
-            {open && <ListItemText primary="Grid View" />}
+            {open && <ListItemText primary="Grid" />}
           </ListItem>
           <ListItem 
             component={Link} 
@@ -251,59 +314,74 @@ const Sidebar = () => {
             </ListItemIcon>
             {open && <ListItemText primary="Calendar" />}
           </ListItem>
-          <Divider sx={{ my: 1 }} />
-          <ListItem 
-            component={Link} 
-            to="/config"
-            sx={{
-              color: isActive('/config') ? theme.palette.primary.main : theme.palette.text.primary,
-              backgroundColor: isActive('/config') ? (isDarkMode ? 'rgba(144, 202, 249, 0.08)' : 'rgba(33, 150, 243, 0.08)') : 'transparent',
-              borderRadius: '8px',
-              mx: open ? 1 : 'auto',
-              my: 0.5,
-              width: open ? 'auto' : 'fit-content',
-              justifyContent: open ? 'flex-start' : 'center',
-              '&:hover': {
-                backgroundColor: isDarkMode ? 'rgba(144, 202, 249, 0.12)' : 'rgba(33, 150, 243, 0.12)',
-              },
-            }}
-          >
-            <ListItemIcon sx={{ 
-              color: isActive('/config') ? theme.palette.primary.main : 'inherit',
-              minWidth: 'auto',
-              justifyContent: 'center',
-              mr: open ? 1 : 0,
-            }}>
-              <Settings />
-            </ListItemIcon>
-            {open && <ListItemText primary="Config" />}
-          </ListItem>
+          {/* Divider is kept if there are items below it, can be removed if Config was the last item in main list */}
+          {/* <Divider sx={{ my: 1 }} /> */} 
         </List>
         <div
-          style={{ marginTop: "auto", padding: "16px", textAlign: "center" }}
+          style={{ 
+            marginTop: "auto", 
+            padding: "16px", 
+            textAlign: "center"
+          }}
         >
-          <Button
-            onClick={user ? handleSignOut : handleSignIn}
-            disabled={loading || authLoading}
-            variant={config?.theme === 'light' ? "contained" : "outlined"} // Updated based on theme
-            color="primary"
-            sx={{ 
-              minWidth: open ? 'auto' : '40px', // Ensure button is small when closed
-              width: open ? '100%' : 'auto', // Full width when open
-              p: open ? 1 : 0.5, // Adjust padding for closed state
-              textTransform: 'none',
-            }}
-          >
-            {authLoading
-              ? "..."
-              : open
-              ? user
-                ? "Sign Out"
-                : "Sign In"
-              : user // When closed
-              ? <Avatar src={user?.picture} sx={{width:24, height:24}}/> // Show small avatar if user logged in
-              : <Settings sx={{fontSize: 24}}/> /* Fallback icon if no user and closed */ }
-          </Button>
+          {/* Sidebar is OPEN */}
+          {open && (
+            user ? (
+              // LOGGED IN and sidebar is OPEN: Config IconButton
+              <IconButton 
+                component={Link} 
+                to="/config" 
+                title="Configuration"
+                aria-label="Configuration"
+                sx={{ 
+                  color: isActive('/config') ? theme.palette.primary.main : theme.palette.text.secondary,
+                  backgroundColor: isActive('/config') ? 
+                                   (config?.darkMode ? 'rgba(144, 202, 249, 0.08)' : 'rgba(33, 150, 243, 0.08)') 
+                                   : 'transparent',
+                  borderRadius: '8px',
+                  p: 1,
+                  '&:hover': {
+                     backgroundColor: config?.darkMode ? 'rgba(144, 202, 249, 0.12)' : 'rgba(33, 150, 243, 0.12)',
+                  },
+                }}
+              >
+                <Settings />
+              </IconButton>
+            ) : (
+              // NOT LOGGED IN and sidebar is OPEN: Sign In Button
+              <Button
+                onClick={handleSignIn}
+                disabled={loading || authLoading}
+                variant={config?.theme === 'light' ? "contained" : "outlined"}
+                color="primary"
+                sx={{ width: '100%', p: 1, textTransform: 'none' }}
+              >
+                {authLoading ? "..." : "Sign In"}
+              </Button>
+            )
+          )}
+
+          {/* Sidebar is CLOSED */}
+          {!open && (
+            <IconButton
+              onClick={!user ? handleSignIn : undefined} // Sign in if no user; no action if user (avatar is display only)
+              disabled={authLoading && !user}
+              title={user ? user.name : "Sign In"}
+              aria-label={user ? user.name : "Sign In"}
+              sx={{
+                color: theme.palette.text.secondary,
+                p: 0.75, 
+              }}
+            >
+              {authLoading && !user ? (
+                "..." // Show loading indicator if auth is in progress for sign-in
+              ) : user ? (
+                <Avatar src={user?.picture} sx={{ width: 28, height: 28 }} />
+              ) : (
+                <Settings sx={{ fontSize: 24 }} /> // Settings icon also for Sign In when closed and no user
+              )}
+            </IconButton>
+          )}
         </div>
       </div>
     </Drawer>

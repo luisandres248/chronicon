@@ -62,7 +62,7 @@ function AppContent() {
     []
   );
 
-  const softDarkTheme = useMemo(
+  const chroniconTheme = useMemo(
     () =>
       createTheme({
         palette: {
@@ -105,9 +105,9 @@ function AppContent() {
   const selectedTheme = useMemo(() => {
     if (config.theme === "light") return lightTheme;
     if (config.theme === "dark") return darkTheme;
-    if (config.theme === "softDark") return softDarkTheme;
-    return softDarkTheme; // Default to softDark if theme is somehow unset
-  }, [config.theme, lightTheme, darkTheme, softDarkTheme]);
+    if (config.theme === "chronicon") return chroniconTheme;
+    return chroniconTheme; // Default to chronicon if theme is somehow unset
+  }, [config.theme, lightTheme, darkTheme, chroniconTheme]);
 
   // Cleanup old component overrides that were dependent on darkMode
   // Specific component overrides can be added to each theme definition if needed.

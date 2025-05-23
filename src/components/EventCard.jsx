@@ -20,8 +20,9 @@ import { format } from "date-fns";
 import { GlobalContext } from "../context/GlobalContext";
 import { calculateEventStats, formatTimeSince } from "../services/eventService";
 
-const EventCard = ({ event, onEdit, onDelete }) => {
-  const navigate = useNavigate();
+// Changed props: onEdit is now onOpenActionDialog, added onDirectEdit
+const EventCard = ({ event, onOpenActionDialog, onDirectEdit, onDelete }) => { 
+  // const navigate = useNavigate(); // No longer used directly for navigation
   const { events, config, calendarColors } = useContext(GlobalContext);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
 
@@ -59,19 +60,22 @@ const EventCard = ({ event, onEdit, onDelete }) => {
 
 
   const handleCardClick = (e) => {
-    if (!e.target.closest("button")) {
-      navigate("/calendar", { state: { selectedEvent: event.name } });
+    // Opens the action dialog if the click is not on a button
+    if (!e.target.closest("button") && onOpenActionDialog) {
+      onOpenActionDialog(event);
     }
   };
 
   const handleDeleteClick = (e) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Prevent card click
     setDeleteDialogOpen(true);
   };
 
   const handleEditClick = (e) => {
-    e.stopPropagation();
-    onEdit(event);
+    e.stopPropagation(); // Prevent card click
+    if (onDirectEdit) {
+      onDirectEdit(event); // Call the new direct edit handler
+    }
   };
 
   const handleConfirmDelete = () => {
@@ -164,7 +168,9 @@ const EventCard = ({ event, onEdit, onDelete }) => {
       <Card
         sx={{
           cursor: "pointer",
-          height: "100%",
+          // height: "100%", // Removed to allow variable height
+          minHeight: 180, // MUI uses theme.spacing units by default if numbers are provided, otherwise specify 'px'
+          maxHeight: 400, // Can be '400px' or a number for theme.spacing
           display: "flex",
           flexDirection: "column",
           backgroundColor: cardBackgroundColor,
