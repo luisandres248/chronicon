@@ -1,6 +1,7 @@
-const CLIENT_ID =
-  "831631852570-s46uu7nqdegb1njh655pnn5rh8lglkuo.apps.googleusercontent.com";
-const API_KEY = "AIzaSyAy9-u3lgJA7QoeDLIvyOVyb2V3RkaPLEk";
+import logger from "../utils/logger.js";
+
+const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 const SCOPES = [
   "https://www.googleapis.com/auth/calendar",
   "https://www.googleapis.com/auth/userinfo.profile",
@@ -12,20 +13,29 @@ let tokenClient = null;
 let tokenRefreshInProgress = false;
 let tokenExpiryTime = null;
 
-// Almacenar el tiempo de expiración del token (1 hora desde la obtención)
+/**
+ * Sets the token expiry time to 55 minutes from the current time.
+ * Google access tokens typically expire in 1 hour.
+ */
 const setTokenExpiryTime = () => {
-  // Google tokens typically expire in 1 hour. Set our check for 55 minutes.
-  tokenExpiryTime = Date.now() + 55 * 60 * 1000; 
-  console.log("Token expiry time set to:", new Date(tokenExpiryTime).toLocaleTimeString());
+  tokenExpiryTime = Date.now() + 55 * 60 * 1000; // 55 minutes in milliseconds
+  logger.log("Token expiry time set to:", new Date(tokenExpiryTime).toLocaleTimeString());
 };
 
-// Verificar si el token está próximo a expirar
+/**
+ * Checks if the current access token is expiring soon (within the next 5 minutes).
+ * @returns {boolean} True if the token is expiring soon or not set, false otherwise.
+ */
 const isTokenExpiringSoon = () => {
-  if (!tokenExpiryTime) return true;
-  // Considerar que está por expirar si quedan menos de 5 minutos
-  return Date.now() > tokenExpiryTime - 5 * 60 * 1000;
+  if (!tokenExpiryTime) return true; // If expiry time isn't set, assume it's expiring.
+  return Date.now() > tokenExpiryTime - 5 * 60 * 1000; // 5 minutes buffer
 };
 
+/**
+ * Loads stored Google API session data (token, profile, calendar) from localStorage.
+ * If a token exists, it attempts to set it in the GAPI client and restore its expiry time.
+ * @returns {object} An object containing the token, profile, and calendar, or null for each if not found/invalid.
+ */
 const loadStoredSession = () => {
   try {
     const token = localStorage.getItem("gapi-token");
@@ -36,17 +46,17 @@ const loadStoredSession = () => {
     if (token && window.gapi?.client) {
       window.gapi.client.setToken({ access_token: token });
       
-      // Restaurar el tiempo de expiración si existe
       if (tokenTimestamp) {
-        // Calculate expiry as 55 minutes from the original grant time
+        // Restore expiry time, calculated as 55 minutes from the original grant time.
         tokenExpiryTime = parseInt(tokenTimestamp, 10) + 55 * 60 * 1000;
-        console.log("Restored token expiry time to:", new Date(tokenExpiryTime).toLocaleTimeString());
+        logger.log("Restored token expiry time to:", new Date(tokenExpiryTime).toLocaleTimeString());
       }
     }
 
     return { token, profile, calendar };
   } catch (error) {
-    console.error("Error loading stored session:", error);
+    logger.error("Error loading stored session:", error);
+    // Clear potentially corrupted session data from localStorage
     localStorage.removeItem("gapi-token");
     localStorage.removeItem("gapi-token-timestamp");
     localStorage.removeItem("user-profile");
@@ -58,29 +68,33 @@ const loadStoredSession = () => {
   }
 };
 
-// Función para renovar el token
+/**
+ * Refreshes the Google access token using the GSI client.
+ * Ensures only one refresh operation is in progress at a time.
+ * @returns {Promise<string>} A promise that resolves with the new access token or rejects with an error.
+ */
 export const refreshToken = () => {
   return new Promise((resolve, reject) => {
     if (tokenRefreshInProgress) {
-      console.log("Token refresh already in progress");
-      // It's better to return a promise that resolves/rejects based on the ongoing refresh,
-      // but for now, rejecting is simpler than implementing a queue or listener.
+      logger.log("Token refresh already in progress, new request rejected.");
+      // Avoids multiple concurrent refresh attempts.
       return reject(new Error("Token refresh already in progress")); 
     }
     
     if (!tokenClient) {
-      console.error("Token client not initialized");
+      logger.error("Token client not initialized, cannot refresh token.");
       return reject(new Error("Token client not initialized"));
     }
     
     tokenRefreshInProgress = true;
-    console.log("Refreshing token...");
+    logger.log("Refreshing token...");
 
-    // Set the callback for this specific refresh operation
-    tokenClient.callback = async (response) => { // Renamed to handleRefreshResponse internally
-      tokenRefreshInProgress = false; // Ensure this is set regardless of outcome
+    // Define the callback for the token client's response.
+    tokenClient.callback = async (response) => { 
+      tokenRefreshInProgress = false; 
       if (response.error) {
-        console.error("Token refresh error:", response);
+        logger.error("Token refresh error:", response);
+        // Clear potentially invalid token data on error
         localStorage.removeItem("gapi-token");
         localStorage.removeItem("gapi-token-timestamp");
         if (window.gapi?.client) {
@@ -96,50 +110,55 @@ export const refreshToken = () => {
         
         localStorage.setItem("gapi-token", token);
         localStorage.setItem("gapi-token-timestamp", Date.now().toString());
-        setTokenExpiryTime(); // Uses the new 55-min logic
+        setTokenExpiryTime(); 
         
-        console.log("Token refreshed successfully");
-        resolve(token); // Resolve the outer promise
+        logger.log("Token refreshed successfully");
+        resolve(token); 
       } catch (error) {
-        console.error("Error processing token refresh response:", error);
-        reject(error); // Reject the outer promise
+        logger.error("Error processing token refresh response:", error);
+        reject(error); 
       }
     };
     
     try {
-      // Attempt silent refresh. The GSI library handles the UX mode (popup/redirect)
-      // based on its initialization and internal logic when prompt is empty.
+      // Attempt a silent token refresh. The GSI library handles the UX mode (popup/redirect)
+      // if user interaction is required and 'prompt' is not specified or is empty.
       tokenClient.requestAccessToken({ prompt: "" }); 
     } catch (error) {
-      // This catch is for immediate errors from calling requestAccessToken itself.
-      console.error("Error invoking tokenClient.requestAccessToken for refresh:", error);
+      // Handles immediate errors from the requestAccessToken call itself.
+      logger.error("Error invoking tokenClient.requestAccessToken for refresh:", error);
       tokenRefreshInProgress = false;
-      tokenClient.callback = ""; // Clear callback if request failed immediately
+      tokenClient.callback = ""; // Clear the callback if the request failed immediately.
       reject(error);
     }
   });
 };
 
-// Función para ejecutar una operación de API con renovación automática de token
+/**
+ * Executes a given API call, automatically handling token refresh if needed.
+ * If the token is expiring soon, it refreshes it before making the API call.
+ * If the API call fails with a 401 error, it attempts to refresh the token and retries the call.
+ * @param {Function} apiCall - A function that returns a Promise representing the API call.
+ * @returns {Promise<any>} The result of the API call.
+ */
 export const executeWithTokenRefresh = async (apiCall) => {
   try {
-    // Verificar si el token está por expirar antes de hacer la llamada
     if (isTokenExpiringSoon()) {
-      console.log("Token is expiring soon, refreshing...");
+      logger.log("Token is expiring soon or not set, attempting refresh before API call...");
       await refreshToken();
     }
     
     return await apiCall();
   } catch (error) {
-    // Si el error es de autenticación (401), intentar renovar el token y reintentar
+    // Check if the error is an authentication error (e.g., 401)
     if (error.status === 401 || (error.result && error.result.error && error.result.error.code === 401)) {
-      console.log("Received 401 error, attempting to refresh token");
+      logger.log("Received 401 error from API call, attempting to refresh token and retry.");
       try {
         await refreshToken();
-        // Reintentar la llamada con el nuevo token
+        // Retry the API call with the new token
         return await apiCall();
       } catch (refreshError) {
-        console.error("Failed to refresh token:", refreshError);
+        logger.error("Failed to refresh token after API call failed:", refreshError);
         throw refreshError;
       }
     }
@@ -157,32 +176,33 @@ export const initGoogleAPI = async () => {
     gapiScript.src = "https://apis.google.com/js/api.js";
 
     gapiScript.onload = () => {
+      // Load the Google Sign-In (GSI) client library after GAPI is loaded.
       const gsiScript = document.createElement("script");
       gsiScript.src = "https://accounts.google.com/gsi/client";
 
       gsiScript.onload = () => {
+        // Initialize the GAPI client after GSI is loaded.
         window.gapi.load("client", async () => {
           try {
             await window.gapi.client.init({
               apiKey: API_KEY,
               discoveryDocs: [
-                "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest",
+                "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest", // Calendar API
               ],
             });
 
-            // Configurar el cliente de token con opciones más robustas
+            // Initialize the GSI token client for handling OAuth2.
             tokenClient = google.accounts.oauth2.initTokenClient({
               client_id: CLIENT_ID,
               scope: SCOPES,
-              callback: "", // defined at request time
-              error_callback: (err) => {
-                console.error("Token client error:", err);
+              callback: "", // Callback is defined dynamically at the time of token request.
+              error_callback: (err) => { // Handles errors from the token client itself.
+                logger.error("Token client error_callback triggered:", err);
                 
-                // Si el error es de popup bloqueado, intentar mostrar un mensaje al usuario
+                // Specifically handle popup blocked/closed errors by dispatching a custom event.
                 if (err.type === 'popup_failed_to_open' || err.type === 'popup_closed') {
-                  console.warn("Popup was blocked or closed. Please allow popups for this site or try again.");
+                  logger.warn("Popup was blocked or closed by the user. Dispatching 'auth-popup-blocked' event.");
                   
-                  // Intentar mostrar una alerta en la UI si es posible
                   if (typeof window !== 'undefined') {
                     const errorEvent = new CustomEvent('auth-popup-blocked', { 
                       detail: { message: "El navegador bloqueó la ventana de autenticación. Por favor, permite ventanas emergentes para este sitio." } 
@@ -191,11 +211,11 @@ export const initGoogleAPI = async () => {
                   }
                 }
               },
-              // Opciones adicionales para mejorar la compatibilidad
-              ux_mode: "popup", // Intentar usar popup primero
-              include_granted_scopes: true,
+              ux_mode: "popup", // Prefer popup UX for token requests.
+              include_granted_scopes: true, // Include previously granted scopes.
             });
 
+            // Attempt to load any existing session from localStorage.
             const { token } = loadStoredSession();
             if (token) {
               window.gapi.client.setToken({ access_token: token });
@@ -204,21 +224,21 @@ export const initGoogleAPI = async () => {
             gapiInitialized = true;
             resolve(window.gapi);
           } catch (error) {
-            console.error("Error initializing GAPI client:", error);
+            logger.error("Error initializing GAPI client:", error);
             reject(error);
           }
         });
       };
 
       gsiScript.onerror = (error) => {
-        console.error("Error loading GSI script:", error);
+        logger.error("Error loading GSI script:", error);
         reject(error);
       };
       document.body.appendChild(gsiScript);
     };
 
     gapiScript.onerror = (error) => {
-      console.error("Error loading GAPI script:", error);
+      logger.error("Error loading GAPI script:", error);
       reject(error);
     };
     document.body.appendChild(gapiScript);
@@ -230,17 +250,25 @@ export const checkSignInStatus = () => {
   return { profile, calendar };
 };
 
+/**
+ * Initiates the Google Sign-In process.
+ * Uses the GSI token client to request an access token.
+ * Fetches user profile and Chronicon calendar information upon successful authentication.
+ * @param {Function} [onStatusUpdate] - Optional callback for status updates during calendar creation.
+ * @returns {Promise<object>} A promise that resolves with userProfile and calendar objects or rejects with an error.
+ */
 export const signIn = (onStatusUpdate) => {
   if (!tokenClient) {
+    logger.error("SignIn: Token client not initialized.");
     throw new Error("Token client not initialized");
   }
 
   return new Promise((resolve, reject) => {
     try {
-      // Función para manejar la respuesta de autenticación
+      // Define the callback for handling the authentication response.
       const handleAuthResponse = async (response) => {
         if (response.error) {
-          console.error("Token client error:", response);
+          logger.error("SignIn - Token client auth error:", response);
           reject(response);
           return;
         }
@@ -249,13 +277,13 @@ export const signIn = (onStatusUpdate) => {
           const token = response.access_token;
           window.gapi.client.setToken({ access_token: token });
 
-          // Store the new token and its timestamp immediately
+          // Store token and timestamp, then set expiry.
           localStorage.setItem("gapi-token", token);
           localStorage.setItem("gapi-token-timestamp", Date.now().toString());
-          setTokenExpiryTime(); // Update module-level expiry time for the new token
-          console.log("Token and expiry time set immediately after acquisition in signIn");
+          setTokenExpiryTime(); 
+          logger.log("SignIn: Token acquired and expiry time set.");
 
-          // Get user info
+          // Fetch user profile information.
           const userResponse = await fetch(
             "https://www.googleapis.com/oauth2/v3/userinfo",
             {
@@ -285,12 +313,10 @@ export const signIn = (onStatusUpdate) => {
             JSON.stringify(calendar)
           );
           
-          // setTokenExpiryTime(); // This call is now redundant here, as it was called earlier.
-
           resolve({ userProfile, calendar });
         } catch (error) {
-          console.error("Error during sign in:", error);
-          // Clear any partial session data
+          logger.error("Error during signIn post-auth processing:", error);
+          // Clear any potentially partial or corrupted session data from localStorage.
           localStorage.removeItem("gapi-token");
           localStorage.removeItem("gapi-token-timestamp");
           localStorage.removeItem("user-profile");
@@ -305,21 +331,19 @@ export const signIn = (onStatusUpdate) => {
       // Asignar el callback
       tokenClient.callback = handleAuthResponse;
 
-      // Directly request the token. GSI's TokenClient will use the configured ux_mode (popup)
-      // and its internal fallbacks. The result will come to handleAuthResponse or the error_callback.
+      // Request an access token. The GSI library handles the UX (e.g., popup).
+      // The response will be directed to `handleAuthResponse` or `error_callback` (defined in initGoogleAPI).
       try {
-        tokenClient.requestAccessToken({}); // Pass empty options object
+        tokenClient.requestAccessToken({}); 
       } catch (error) {
-        // This catch is for immediate errors from calling requestAccessToken itself,
-        // not for errors from the async token acquisition process (which go to error_callback).
-        console.error("Error invoking tokenClient.requestAccessToken:", error);
-        reject(error); // Reject the signIn promise
+        // This catch handles immediate, synchronous errors from calling requestAccessToken.
+        // Async errors related to the token acquisition process itself are handled by the error_callback.
+        logger.error("SignIn: Error invoking tokenClient.requestAccessToken:", error);
+        reject(error); 
       }
     } catch (error) {
-      // This outer catch is for errors in the Promise setup or other synchronous code,
-      // though most errors related to token request should be caught by the inner try/catch
-      // or handled by the GSI library's error_callback.
-      console.error("Error in signIn promise setup:", error);
+      // This outer catch is for any synchronous errors during the Promise setup.
+      logger.error("SignIn: Error in signIn promise setup:", error);
       reject(error);
     }
   });
@@ -337,34 +361,42 @@ export const signOut = async () => {
           },
         });
       } catch (error) {
-        console.warn("Error revoking token:", error);
+        logger.warn("Error revoking token:", error);
       }
     }
 
-    // Clear specific items from localStorage
+    // Clear all relevant session data from localStorage.
     localStorage.removeItem("gapi-token");
     localStorage.removeItem("gapi-token-timestamp");
     localStorage.removeItem("user-profile");
     localStorage.removeItem("chronicon-calendar");
 
-    // Clear gapi token
+    // Clear the token from the GAPI client.
     if (window.gapi?.client) {
       window.gapi.client.setToken(null);
     }
+    logger.log("User signed out and session data cleared.");
   } catch (error) {
-    console.error("Error signing out:", error);
+    logger.error("Error during sign out:", error);
   }
 };
 
+/**
+ * Fetches the user's calendar list and finds or creates a calendar named "Chronicon".
+ * If created, it's also added to the user's calendar list.
+ * @param {Function} [onStatusUpdate] - Optional callback for status updates during the process.
+ * @returns {Promise<object>} The Chronicon calendar object.
+ */
 export const getOrCreateChroniconCalendar = async (onStatusUpdate) => {
   return executeWithTokenRefresh(async () => {
     try {
       onStatusUpdate?.("Searching for Chronicon calendar...");
-      console.log("Fetching calendar list");
+      logger.log("Fetching user's calendar list.");
       const response = await window.gapi.client.calendar.calendarList.list();
+      
       if (!response?.result?.items) {
-        const errorMsg = "Failed to fetch calendar list";
-        onStatusUpdate?.(`Error finding or creating Chronicon calendar: ${errorMsg}`, true);
+        const errorMsg = "Failed to fetch calendar list or no items found.";
+        onStatusUpdate?.(`Error: ${errorMsg}`, true);
         throw new Error(errorMsg);
       }
 
@@ -374,52 +406,53 @@ export const getOrCreateChroniconCalendar = async (onStatusUpdate) => {
 
       if (!chroniconCalendar) {
         onStatusUpdate?.("Chronicon calendar not found. Creating a new one...");
-        console.log("Chronicon calendar not found, creating new one");
-        const created = await window.gapi.client.calendar.calendars.insert({
-          resource: {
-            summary: "Chronicon",
-            description: "Calendar for Chronicon events",
-            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-          },
-        });
+        logger.log("Chronicon calendar not found, creating new one.");
+        const calendarResource = {
+          summary: "Chronicon",
+          description: "Calendar for Chronicon events",
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Use user's current timezone
+        };
+        const created = await window.gapi.client.calendar.calendars.insert({ resource: calendarResource });
         chroniconCalendar = created.result;
 
-        // Add the calendar to the user's calendar list
-        await window.gapi.client.calendar.calendarList.insert({
-          resource: { id: chroniconCalendar.id },
-        });
+        // Add the newly created calendar to the user's calendar list to make it visible.
+        await window.gapi.client.calendar.calendarList.insert({ resource: { id: chroniconCalendar.id } });
         
         onStatusUpdate?.("Successfully created and added Chronicon calendar.");
-        console.log("Chronicon calendar created successfully:", chroniconCalendar);
+        logger.log("Chronicon calendar created and added to list successfully:", chroniconCalendar);
       } else {
         onStatusUpdate?.("Successfully found Chronicon calendar.");
-        console.log("Found existing Chronicon calendar:", chroniconCalendar);
+        logger.log("Found existing Chronicon calendar:", chroniconCalendar);
       }
 
       return chroniconCalendar;
     } catch (error) {
-      console.error("Calendar creation error:", error);
-      onStatusUpdate?.(`Error finding or creating Chronicon calendar: ${error.message || error}`, true);
+      logger.error("Error in getOrCreateChroniconCalendar:", error);
+      onStatusUpdate?.(`Error finding or creating Chronicon calendar: ${error.message || String(error)}`, true);
       throw error;
     }
   });
 };
 
+/**
+ * Fetches the available color palette for Google Calendar.
+ * @returns {Promise<object|null>} The calendar color palette object or null on error/invalid response.
+ */
 export const getCalendarColors = async () => {
   return executeWithTokenRefresh(async () => {
     try {
-      console.log("Fetching available colors from Google Calendar");
+      logger.log("Fetching available colors from Google Calendar");
       const response = await window.gapi.client.calendar.colors.get();
       
       if (!response || !response.result) {
-        console.warn("Invalid response from Google Calendar colors API:", response);
+        logger.warn("Invalid response from Google Calendar colors API:", response);
         return null;
       }
       
-      console.log("Available colors:", response.result);
+      logger.log("Available colors:", response.result);
       return response.result;
     } catch (error) {
-      console.error("Error fetching calendar colors:", error);
+      logger.error("Error fetching calendar colors:", error);
       throw error;
     }
   });
@@ -428,7 +461,7 @@ export const getCalendarColors = async () => {
 export const fetchCalendarEvents = async (calendarId) => {
   return executeWithTokenRefresh(async () => {
     try {
-      console.log(`Fetching events for calendar: ${calendarId}`);
+      logger.log(`Fetching events for calendar: ${calendarId}`);
       const response = await window.gapi.client.calendar.events.list({
         calendarId: calendarId,
         showDeleted: false,
@@ -436,14 +469,14 @@ export const fetchCalendarEvents = async (calendarId) => {
       });
 
       if (!response || !response.result || !response.result.items) {
-        console.warn("Invalid response from Google Calendar API:", response);
+        logger.warn("Invalid response from Google Calendar API:", response);
         return [];
       }
 
-      console.log(`Successfully fetched ${response.result.items?.length || 0} events`);
+      logger.log(`Successfully fetched ${response.result.items?.length || 0} events`);
       return response.result.items;
     } catch (error) {
-      console.error("Error fetching events:", error);
+      logger.error("Error fetching events:", error);
       throw error;
     }
   });
@@ -456,7 +489,7 @@ export const createEvent = async (calendarId, event) => {
 
   return executeWithTokenRefresh(async () => {
     try {
-      console.log("Creating event in Google Calendar:", { calendarId, event });
+      logger.log("Creating event in Google Calendar:", { calendarId, event });
       
       // Validar que el evento tenga los campos requeridos
       if (!event.summary) {
@@ -476,10 +509,10 @@ export const createEvent = async (calendarId, event) => {
         throw new Error("No response from Google Calendar API");
       }
 
-      console.log("Google Calendar API response:", response.result);
+      logger.log("Google Calendar API response:", response.result);
       return response.result;
     } catch (error) {
-      console.error("Error creating event in Google Calendar:", error);
+      logger.error("Error creating event in Google Calendar:", error);
       throw error;
     }
   });
@@ -492,7 +525,7 @@ export const updateEvent = async (calendarId, eventId, event) => {
 
   return executeWithTokenRefresh(async () => {
     try {
-      console.log(`Updating event ${eventId} in calendar ${calendarId}`, event);
+      logger.log(`Updating event ${eventId} in calendar ${calendarId}`, event);
       
       // Validar que el evento tenga los campos requeridos
       if (!event.summary) {
@@ -519,10 +552,10 @@ export const updateEvent = async (calendarId, eventId, event) => {
         throw new Error("Invalid response from Google Calendar API");
       }
       
-      console.log("Event updated successfully:", response.result);
+      logger.log("Event updated successfully:", response.result);
       return response.result;
     } catch (error) {
-      console.error("Error updating event:", error);
+      logger.error("Error updating event:", error);
       throw error;
     }
   });
@@ -535,17 +568,17 @@ export const deleteEvent = async (calendarId, eventId) => {
 
   return executeWithTokenRefresh(async () => {
     try {
-      console.log(`Deleting event ${eventId} from calendar ${calendarId}`);
+      logger.log(`Deleting event ${eventId} from calendar ${calendarId}`);
       
       const response = await window.gapi.client.calendar.events.delete({
         calendarId: calendarId,
         eventId: eventId,
       });
       
-      console.log("Event deleted successfully");
+      logger.log("Event deleted successfully");
       return true;
     } catch (error) {
-      console.error("Error deleting event:", error);
+      logger.error("Error deleting event:", error);
       throw error;
     }
   });

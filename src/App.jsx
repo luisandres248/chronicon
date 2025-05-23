@@ -18,39 +18,6 @@ function AppContent() {
   const navigate = useNavigate();
   const [authMessage, setAuthMessage] = useState(null);
 
-  // Manejar redirecciones de autenticación
-  // useEffect(() => {
-  //   // Verificar si hay un token en la URL (redirección de autenticación)
-  //   if (location.hash && location.hash.includes('access_token')) {
-  //     console.log("Detected authentication redirect with token");
-      
-  //     // Extraer el token
-  //     const params = new URLSearchParams(location.hash.substring(1));
-  //     const token = params.get('access_token');
-      
-  //     if (token) {
-  //       console.log("Token found in URL, processing authentication");
-        
-  //       // Guardar el token en localStorage
-  //       localStorage.setItem("gapi-token", token);
-  //       localStorage.setItem("gapi-token-timestamp", Date.now().toString());
-        
-  //       // Mostrar mensaje
-  //       setAuthMessage({
-  //         type: "success",
-  //         text: "Autenticación exitosa. Cargando datos..."
-  //       });
-        
-  //       // Recargar la página para procesar la autenticación
-  //       setTimeout(() => {
-  //         // Limpiar la URL
-  //         navigate(location.pathname, { replace: true });
-  //         window.location.reload();
-  //       }, 1500);
-  //     }
-  //   }
-  // }, [location, navigate]);
-
   const theme = useMemo(
     () =>
       createTheme({

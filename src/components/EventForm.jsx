@@ -19,6 +19,7 @@ import {
 } from "@mui/material";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { GlobalContext } from "../context/GlobalContext";
+import logger from "../utils/logger.js";
 
 const EventForm = ({ open, onClose, onSubmit, event = null }) => {
   const { calendarColors, loadingColors } = useContext(GlobalContext);
@@ -35,7 +36,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
 
   useEffect(() => {
     if (event) {
-      console.log("Initializing form with event:", event);
+      logger.log("Initializing form with event:", event);
       setFormData({
         name: event.name || "",
         startDate: event.startDate || new Date(),
@@ -108,7 +109,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
       tags: formData.tags.map(tag => tag.trim()).filter(tag => tag.length > 0), 
     };
     
-    console.log("Submitting form data:", cleanedFormData);
+    logger.log("Submitting form data:", cleanedFormData);
     onSubmit(cleanedFormData);
     // Note: setSubmitting(false) is handled by the useEffect that depends on 'open'
     // which is generally fine as the form closes/resets.
@@ -132,7 +133,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
   };
 
   const handleColorChange = (colorId) => {
-    console.log("Color ID changed:", colorId);
+    logger.log("Color ID changed:", colorId);
     setFormData({ ...formData, colorId });
   };
 
