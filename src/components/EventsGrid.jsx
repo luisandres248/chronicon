@@ -1,9 +1,12 @@
 import React, { useState, useContext, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Grid, Box, Fab, Typography, CircularProgress, Button, Alert, Snackbar } from "@mui/material";
 import { Add } from "@mui/icons-material";
 import { GlobalContext } from "../context/GlobalContext";
 import EventCard from "./EventCard";
 import EventForm from "./EventForm";
+import EventActionDialog from "./EventActionDialog";
+import AddRecurrenceDialog from "./AddRecurrenceDialog";
 import { createEventObject, parseGoogleEvent } from "../services/eventService";
 import {
   createEvent,
@@ -26,7 +29,6 @@ const EventsGrid = () => {
     deleteEvent: deleteEventInState,
     setUser,
     setCalendar,
-    setEvents,
     setAllEvents,
   } = useContext(GlobalContext);
 
@@ -37,24 +39,27 @@ const EventsGrid = () => {
   const [authError, setAuthError] = useState(null);
   const [popupBlocked, setPopupBlocked] = useState(false);
 
+  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
+  const [eventForActionDialog, setEventForActionDialog] = useState(null);
+
+  const [isRecurrenceDialogOpen, setIsRecurrenceDialogOpen] = useState(false);
+  const [eventForRecurrenceDialog, setEventForRecurrenceDialog] = useState(null);
+
+  const navigate = useNavigate();
+
   useEffect(() => {
-    console.log("Current events:", events);
-    console.log("Calendar:", calendar);
+    // console.log("Current events:", events);
+    // console.log("Calendar:", calendar);
   }, [events, calendar]);
 
-  // Escuchar eventos de bloqueo de popup
   useEffect(() => {
     const handlePopupBlocked = (event) => {
       console.log("Popup blocked event received:", event.detail);
       setPopupBlocked(true);
       setAuthError(event.detail.message || "El navegador bloqueó la ventana de autenticación. Por favor, permite ventanas emergentes para este sitio.");
     };
-
     window.addEventListener('auth-popup-blocked', handlePopupBlocked);
-
-    return () => {
-      window.removeEventListener('auth-popup-blocked', handlePopupBlocked);
-    };
+    return () => window.removeEventListener('auth-popup-blocked', handlePopupBlocked);
   }, []);
 
   const handleSignIn = async () => {
@@ -66,7 +71,6 @@ const EventsGrid = () => {
         setAuthError(isError ? `Error: ${message}` : `Status: ${message}`);
       });
       if (response?.userProfile) {
-        console.log("Sign in successful:", response);
         setUser(response.userProfile);
         setCalendar(response.calendar);
       }
@@ -74,8 +78,6 @@ const EventsGrid = () => {
       if (error?.error !== "popup_closed_by_user") {
         console.error("Error signing in:", error);
         setAuthError(error.message || "Error al iniciar sesión. Por favor, intenta de nuevo.");
-        
-        // Verificar si el error está relacionado con popups
         if (error.type === 'popup_failed_to_open' || error.type === 'popup_closed') {
           setPopupBlocked(true);
         }
@@ -99,20 +101,10 @@ const EventsGrid = () => {
   };
 
   const handleCreateEvent = async (formData) => {
-    if (!calendar?.id) {
-      console.error("No calendar ID available");
-      return;
-    }
-
+    if (!calendar?.id) return;
     try {
       setProcessing(true);
-      console.log("Creating event with form data:", formData);
-      
-      // Validar que el nombre no esté vacío
-      if (!formData.name || formData.name.trim() === "") {
-        throw new Error("El nombre del evento no puede estar vacío");
-      }
-      
+      if (!formData.name || formData.name.trim() === "") throw new Error("El nombre del evento no puede estar vacío");
       const eventObject = createEventObject({
         name: formData.name.trim(),
         startDate: formData.startDate,
@@ -120,49 +112,27 @@ const EventsGrid = () => {
         colorId: formData.colorId || null,
         tags: formData.tags || [],
       });
-      
-      console.log("Creating event with data:", eventObject);
-
-      // Create event in Google Calendar
       const createdEvent = await createEvent(calendar.id, eventObject);
-      console.log("Response from Google Calendar:", createdEvent);
-
-      if (!createdEvent) {
-        throw new Error("Failed to create event in Google Calendar");
-      }
-
-      // Parse the event returned from Google Calendar
+      if (!createdEvent) throw new Error("Failed to create event in Google Calendar");
       const parsedEvent = parseGoogleEvent(createdEvent);
-      console.log("Parsed created event:", parsedEvent);
-
       if (parsedEvent) {
         addEvent(parsedEvent);
-        setFormOpen(false);
+        setFormOpen(false); // Close form on successful creation
       } else {
         throw new Error("Failed to parse created event");
       }
     } catch (error) {
       console.error("Error creating event:", error);
-      // You might want to show an error message to the user here
+      // Consider setting an error state to show in a Snackbar or Alert
     } finally {
       setProcessing(false);
     }
   };
 
   const handleUpdateEvent = async (formData) => {
-    if (!calendar?.id || !selectedEvent?.id) {
-      console.error("Missing calendar ID or event ID");
-      return;
-    }
-
+    if (!calendar?.id || !selectedEvent?.id) return;
     try {
       setProcessing(true);
-      console.log("Updating event with data:", {
-        original: selectedEvent,
-        formData: formData
-      });
-      
-      // Crear objeto de evento asegurando que se incluyan todos los campos necesarios
       const eventObject = createEventObject({
         id: selectedEvent.id,
         name: formData.name || selectedEvent.name,
@@ -171,163 +141,164 @@ const EventsGrid = () => {
         colorId: formData.colorId !== undefined ? formData.colorId : selectedEvent.colorId,
         tags: formData.tags || selectedEvent.tags,
       });
-      
-      console.log("Event object for update:", eventObject);
-      
-      const updatedEvent = await updateEvent(
-        calendar.id,
-        selectedEvent.id,
-        eventObject
-      );
-      
-      console.log("Response from Google Calendar update:", updatedEvent);
-      
-      if (!updatedEvent) {
-        throw new Error("No response received from Google Calendar API");
-      }
-      
+      const updatedEvent = await updateEvent(calendar.id, selectedEvent.id, eventObject);
+      if (!updatedEvent) throw new Error("No response received from Google Calendar API");
       const parsedEvent = parseGoogleEvent(updatedEvent);
-      console.log("Parsed updated event:", parsedEvent);
-      
       if (parsedEvent) {
-        // Actualizar el evento en el estado global
         updateEventInState(parsedEvent);
-        setFormOpen(false);
-        setSelectedEvent(null);
-        
-        // Recargar eventos para asegurar que la UI esté actualizada
+        setFormOpen(false); // Close form
+        setSelectedEvent(null); // Clear selected event
         await reloadEvents();
       } else {
         throw new Error("Failed to parse updated event");
       }
     } catch (error) {
       console.error("Error updating event:", error);
-      // Mostrar mensaje de error al usuario
+      // Consider setting an error state
     } finally {
       setProcessing(false);
     }
   };
 
-  // Función para recargar eventos desde Google Calendar
   const reloadEvents = async () => {
-    if (!calendar?.id || !user) {
-      console.log("Cannot reload events - missing calendar or user");
-      return;
-    }
-    
+    if (!calendar?.id || !user) return;
     try {
-      console.log("Reloading events from Google Calendar");
+      // console.log("Reloading events..."); // Optional: for debugging
       const calendarEvents = await fetchCalendarEvents(calendar.id);
-      
       if (!calendarEvents || !Array.isArray(calendarEvents)) {
         console.error("Invalid response when reloading events");
         return;
       }
-      
-      console.log(`Reloaded ${calendarEvents.length} events from Google Calendar`);
-      
-      // Usar la nueva función setAllEvents para actualizar todos los eventos a la vez
       setAllEvents(calendarEvents);
     } catch (error) {
       console.error("Error reloading events:", error);
     }
   };
 
-  const handleDeleteEvent = async (event) => {
-    if (!calendar?.id || !event?.id) {
-      console.error("Missing calendar ID or event ID");
-      return;
-    }
+  // This is for deleting from EventCard (quick delete)
+  const handleDeleteEvent = async (eventToDelete) => {
+    if (!calendar?.id || !eventToDelete?.id) return;
+    // Optional: Add a window.confirm here if desired for EventCard deletions too
+    // if (!window.confirm(`¿Estás seguro de que quieres eliminar el evento "${eventToDelete.name}" desde la tarjeta?`)) return;
 
+    setProcessing(true);
     try {
-      setProcessing(true);
-      await deleteEvent(calendar.id, event.id);
-      deleteEventInState(event.id);
-      
-      // Recargar eventos para asegurar que la UI esté actualizada
-      await reloadEvents();
+      await deleteEvent(calendar.id, eventToDelete.id);
+      deleteEventInState(eventToDelete.id);
+      // reloadEvents might be good here if other derived state depends on the full list
     } catch (error) {
-      console.error("Error deleting event:", error);
+      console.error("Error deleting event from card:", error);
     } finally {
       setProcessing(false);
     }
   };
-
-  const handleEdit = (event) => {
-    setSelectedEvent(event);
-    setFormOpen(true);
+  
+  // This is for deleting from EventForm
+  const handleDeleteEventFromForm = async (eventId) => {
+    if (!calendar?.id || !eventId) {
+      console.error("Missing calendar ID or event ID for form deletion");
+      return; 
+    }
+    setProcessing(true);
+    try {
+      await deleteEvent(calendar.id, eventId);
+      deleteEventInState(eventId);
+      // setFormOpen(false); // EventForm calls its own onClose, which triggers handleFormClose
+      // setSelectedEvent(null); // handleFormClose will also do this.
+      await reloadEvents(); // Reload to ensure consistency
+    } catch (error) {
+      console.error("Error deleting event from form:", error);
+      // Optionally: set an error state to show to the user
+    } finally {
+      setProcessing(false);
+      // Ensure form is closed and selected event is cleared, even if EventForm's onClose doesn't fire due to an error above.
+      // However, EventForm's own onClose should typically handle this.
+      // If deletion is successful, EventForm's onClose is called by its own handleDelete.
+      // If an error occurs here, the form might stay open, which could be intended if user needs to retry.
+    }
   };
 
+
+  const handleEventCardClick = (event) => {
+    setEventForActionDialog(event);
+    setIsActionDialogOpen(true);
+  };
+
+  const handleCloseActionDialog = () => {
+    setIsActionDialogOpen(false);
+    setEventForActionDialog(null);
+  };
+
+  const handleGoToCalendar = (event) => {
+    if (event && event.startDate) {
+      const date = event.startDate instanceof Date ? event.startDate.toISOString().split('T')[0] : new Date(event.startDate).toISOString().split('T')[0];
+      navigate("/calendar", { state: { selectedEventId: event.id, selectedDate: date } });
+    } else {
+      navigate("/calendar", { state: { selectedEventId: event?.id } });
+    }
+    handleCloseActionDialog();
+  };
+  
+  const handleAddRecurrenceClicked = (event) => {
+    handleCloseActionDialog(); 
+    setEventForRecurrenceDialog(event);
+    setIsRecurrenceDialogOpen(true); 
+  };
+
+  const handleCloseRecurrenceDialog = () => {
+    setIsRecurrenceDialogOpen(false);
+    setEventForRecurrenceDialog(null);
+  };
+
+  const handleSaveRecurrence = async (originalEvent, newDate) => {
+    if (!calendar?.id || !originalEvent) return;
+    setProcessing(true);
+    try {
+      const recurrenceEventObject = createEventObject({
+        name: originalEvent.name, description: originalEvent.description || "",
+        colorId: originalEvent.colorId || null, tags: originalEvent.tags || [],
+        startDate: newDate,
+      });
+      const createdCalendarEvent = await createEvent(calendar.id, recurrenceEventObject);
+      if (!createdCalendarEvent) throw new Error("Failed to create recurring event in Google Calendar.");
+      const parsedEvent = parseGoogleEvent(createdCalendarEvent);
+      if (parsedEvent) addEvent(parsedEvent);
+      else throw new Error("Failed to parse recurring event from Google Calendar response.");
+    } catch (error) {
+      console.error("Error creating recurring event:", error);
+    } finally {
+      setProcessing(false);
+      handleCloseRecurrenceDialog();
+    }
+  };
+  
   const handleFormClose = () => {
     setFormOpen(false);
     setSelectedEvent(null);
-    
-    // Recargar eventos para asegurar que la UI esté actualizada
+    // reloadEvents() here can be heavy if form was just cancelled.
+    // It's primarily for after create/update/delete.
+    // Consider if reloadEvents is needed for simple close without action.
+    // For now, keeping it as it was to ensure data consistency after potential edits.
     reloadEvents().catch(error => {
       console.error("Error reloading events after form close:", error);
     });
   };
 
   if (globalLoading || processing) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    );
+    return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}><CircularProgress /></Box>;
   }
 
   if (globalError) {
     return (
-      <Box sx={{ 
-        p: 3, 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        minHeight: '50vh'
-      }}>
-        <Typography 
-          variant="h6" 
-          color="error" 
-          gutterBottom
-          sx={{ 
-            textAlign: 'center',
-            maxWidth: '600px'
-          }}
-        >
-          {globalError}
-        </Typography>
-        <Typography 
-          variant="body2" 
-          color="text.secondary"
-          sx={{ 
-            textAlign: 'center',
-            maxWidth: '600px',
-            mt: 2
-          }}
-        >
+      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+        <Typography variant="h6" color="error" gutterBottom sx={{ textAlign: 'center', maxWidth: '600px' }}>{globalError}</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', maxWidth: '600px', mt: 2 }}>
           {globalError.includes("session has expired") ? (
             <>
-              Your authentication session has expired. Please sign out and sign in again to refresh your access.
-              <Button 
-                variant="outlined" 
-                color="primary" 
-                onClick={handleSignOut} 
-                sx={{ mt: 2 }}
-              >
-                Sign Out
-              </Button>
+              Your authentication session has expired. Please sign out and sign in again.
+              <Button variant="outlined" color="primary" onClick={handleSignOut} sx={{ mt: 2 }}>Sign Out</Button>
             </>
-          ) : (
-            "Please try again later or contact support if the problem persists."
-          )}
+          ) : "Please try again later or contact support."}
         </Typography>
       </Box>
     );
@@ -335,81 +306,33 @@ const EventsGrid = () => {
 
   if (!calendar) {
     return (
-      <Box sx={{ 
-        p: 3,
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        minHeight: '50vh'
-      }}>
-        <Typography variant="h6" gutterBottom>
-          Bienvenido a Chronicon
-        </Typography>
-        <Typography 
-          variant="body1" 
-          sx={{ 
-            textAlign: 'center',
-            maxWidth: '600px',
-            mb: 3
-          }}
-        >
+      <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
+        <Typography variant="h6" gutterBottom>Bienvenido a Chronicon</Typography>
+        <Typography variant="body1" sx={{ textAlign: 'center', maxWidth: '600px', mb: 3 }}>
           Por favor inicia sesión con tu cuenta de Google para acceder a tu calendario Chronicon.
         </Typography>
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={handleSignIn}
-          disabled={globalLoading || authLoading}
-        >
+        <Button variant="contained" color="primary" onClick={handleSignIn} disabled={globalLoading || authLoading}>
           {authLoading ? "Iniciando sesión..." : "Iniciar sesión con Google"}
         </Button>
-        
-        {authError && (
-          <Alert 
-            severity="error" 
-            sx={{ mt: 2, maxWidth: '600px' }}
-          >
-            {authError}
-          </Alert>
-        )}
-        
-        {popupBlocked && (
-          <Alert 
-            severity="warning" 
-            sx={{ mt: 2, maxWidth: '600px' }}
-          >
-            El navegador bloqueó la ventana emergente. Por favor, asegúrate de permitir ventanas emergentes para este sitio y vuelve a intentarlo.
-          </Alert>
-        )}
+        {authError && <Alert severity="error" sx={{ mt: 2, maxWidth: '600px' }}>{authError}</Alert>}
+        {popupBlocked && <Alert severity="warning" sx={{ mt: 2, maxWidth: '600px' }}>El navegador bloqueó la ventana emergente. Por favor, asegúrate de permitir ventanas emergentes.</Alert>}
       </Box>
     );
   }
 
-  if (!events.length) {
+  if (!events.length && !globalLoading) {
     return (
       <Box sx={{ p: 3, position: "relative", minHeight: "100vh" }}>
-        <Typography>
-          No events found. Create one by clicking the + button.
-        </Typography>
-        <Fab
-          color="primary"
-          sx={{ position: "fixed", bottom: 16, right: 16 }}
-          onClick={() => {
-            setSelectedEvent(null);
-            setFormOpen(true);
-          }}
-        >
+        <Typography>No events found. Create one by clicking the + button.</Typography>
+        <Fab color="primary" sx={{ position: "fixed", bottom: 16, right: 16 }} onClick={() => { setSelectedEvent(null); setFormOpen(true); }}>
           <Add />
         </Fab>
-        <EventForm
+        <EventForm // For creating new event when list is empty
           open={formOpen}
-          onClose={() => {
-            setFormOpen(false);
-            setSelectedEvent(null);
-          }}
-          onSubmit={selectedEvent ? handleUpdateEvent : handleCreateEvent}
-          event={selectedEvent}
+          onClose={handleFormClose}
+          onSubmit={handleCreateEvent} // Explicitly handleCreateEvent
+          event={null} // No event to edit
+          onDelete={undefined} // No delete for new event
         />
       </Box>
     );
@@ -422,29 +345,48 @@ const EventsGrid = () => {
           <Grid item xs={12} sm={6} md={4} lg={3} key={event.id}>
             <EventCard
               event={event}
-              onEdit={handleEdit}
-              onDelete={handleDeleteEvent}
+              onEdit={handleEventCardClick} // Opens Action Dialog
+              onDelete={() => handleDeleteEvent(event)} // Quick delete from card
             />
           </Grid>
         ))}
       </Grid>
 
-      <Fab
+      <Fab // FAB for creating new events
         color="primary"
         sx={{ position: "fixed", bottom: 16, right: 16 }}
         onClick={() => {
-          setSelectedEvent(null);
+          setSelectedEvent(null); // Clear selected event for new form
           setFormOpen(true);
         }}
       >
         <Add />
       </Fab>
 
-      <EventForm
+      <EventForm // Main form for create/edit
         open={formOpen}
         onClose={handleFormClose}
         onSubmit={selectedEvent ? handleUpdateEvent : handleCreateEvent}
-        event={selectedEvent}
+        event={selectedEvent} 
+        onDelete={selectedEvent ? handleDeleteEventFromForm : undefined} // Pass delete handler only if editing
+      />
+
+      <EventActionDialog
+        open={isActionDialogOpen}
+        onClose={handleCloseActionDialog}
+        event={eventForActionDialog}
+        onGoToCalendar={handleGoToCalendar}
+        onAddRecurrence={handleAddRecurrenceClicked}
+        // Future: could add onEdit prop here to directly open EventForm for editing
+        // onEditEvent={(event) => { setSelectedEvent(event); setFormOpen(true); handleCloseActionDialog(); }}
+      />
+      
+      <AddRecurrenceDialog
+        open={isRecurrenceDialogOpen}
+        onClose={handleCloseRecurrenceDialog}
+        onSubmit={handleSaveRecurrence}
+        eventToRecur={eventForRecurrenceDialog}
+        // initialDate prop is managed by AddRecurrenceDialog's own useEffect or passed if needed
       />
     </Box>
   );
