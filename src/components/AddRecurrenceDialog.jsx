@@ -34,7 +34,7 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth aria-labelledby="add-recurrence-dialog-title">
       <DialogTitle id="add-recurrence-dialog-title">
-        Añadir Recurrencia para: {eventToRecur.name}
+        Añadir Ocurrencia para: {eventToRecur.name} 
       </DialogTitle>
       <DialogContent sx={{ mt: 2 }}> 
         {/* Added sx={{ mt: 2 }} for a bit of top margin as per the example's good practice */}

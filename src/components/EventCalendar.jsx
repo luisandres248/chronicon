@@ -34,7 +34,9 @@ import {
   Update, 
   ViewStream, 
   ViewModule, 
-  Repeat as RepeatIcon
+  Repeat as RepeatIcon,
+  Visibility, // Added
+  VisibilityOff // Added
 } from "@mui/icons-material";
 import { format, differenceInDays, differenceInMonths, differenceInYears, differenceInSeconds, differenceInHours, differenceInMinutes, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, getMonth, getYear, isSameDay, startOfDay, endOfDay, getDay } from "date-fns";
 import { es } from "date-fns/locale";
@@ -548,14 +550,15 @@ function EventCalendar() {
               {selectedEventObject && ( 
                 <>
                   <Tooltip title="Editar primera ocurrencia"><IconButton color="primary" onClick={handleEditClick} size="small"><Edit /></IconButton></Tooltip>
-                  <Tooltip title="Añadir Recurrencia (para la serie seleccionada)">
-                    <Button 
-                      variant="outlined" size="small" startIcon={<RepeatIcon />} 
+                  <Tooltip title="Añadir Ocurrencia">
+                    <IconButton 
+                      color="primary" // Or "default" or "inherit" based on desired styling
                       onClick={handleOpenRecurrenceDialogFromButton}
-                      disabled={!selectedEventObject || processing} 
+                      disabled={!selectedEventObject || processing}
+                      size="small" // Match the edit button size
                     >
-                      Añadir Recurrencia
-                    </Button>
+                      <RepeatIcon />
+                    </IconButton>
                   </Tooltip>
                 </>
               )}
@@ -577,11 +580,15 @@ function EventCalendar() {
               <ToggleButton value="traditional" aria-label="traditional view"><ViewModule sx={{ mr: 0.5 }} fontSize="small" />Tradicional</ToggleButton>
               <ToggleButton value="stream" aria-label="stream view"><ViewStream sx={{ mr: 0.5 }} fontSize="small" />Stream</ToggleButton>
             </ToggleButtonGroup>
-            <FormControlLabel
-              control={<Switch checked={showAllDayNumbers} onChange={(e) => setShowAllDayNumbers(e.target.checked)} />}
-              label="Mostrar todos los números de día"
-              sx={{ ml: { xs: 0, sm: 2 }, mt: { xs: 1, sm: 0 } }}
-            />
+            <Tooltip title="Mostrar/Ocultar números de todos los días">
+              <IconButton 
+                onClick={() => setShowAllDayNumbers(!showAllDayNumbers)} 
+                color="primary" // Or "inherit" or "default" based on desired styling
+                sx={{ ml: { xs: 0, sm: 2 }, mt: { xs: 1, sm: 0 } }} // Keep similar margin for spacing
+              >
+                {showAllDayNumbers ? <VisibilityOff /> : <Visibility />}
+              </IconButton>
+            </Tooltip>
           </Grid>
         </Grid>
       </Paper>
