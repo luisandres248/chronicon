@@ -7,7 +7,6 @@ import {
   TextField,
   Button,
   Box,
-  Autocomplete,
   Chip,
   Typography,
   Alert,
@@ -21,7 +20,7 @@ import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { GlobalContext } from "../context/GlobalContext";
 import logger from "../utils/logger.js";
 
-const EventForm = ({ open, onClose, onSubmit, event = null }) => {
+const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => { // Added onDelete prop
   const { calendarColors, loadingColors } = useContext(GlobalContext);
   const [formData, setFormData] = useState({
     name: "",
@@ -53,54 +52,39 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
         tags: [],
       });
     }
-    // Limpiar errores al abrir el formulario
     setErrors({});
     setSubmitting(false);
   }, [event, open]);
 
   const validateForm = () => {
     const newErrors = {};
-    
-    // Validar nombre
     if (!formData.name || formData.name.trim() === "") {
       newErrors.name = "El nombre del evento es obligatorio";
     }
-    
-    // Validar fecha
     if (!formData.startDate || !(formData.startDate instanceof Date) || isNaN(formData.startDate.getTime())) {
       newErrors.startDate = "La fecha de inicio no es válida";
     }
-    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    // Process pending tagInput before validation or final object creation
     let currentTags = [...formData.tags];
     const trimmedTagInput = tagInput.trim();
 
     if (trimmedTagInput !== "" && !currentTags.includes(trimmedTagInput)) {
-      // If there's text in input & not already in tags list, add it
       currentTags.push(trimmedTagInput);
-      // Update formData.tags state so it's consistent for validation and UI
-      // Also, clear the input field once the tag is processed.
-      // This state update will make sure validateForm() sees the latest tags.
       setFormData(prevData => ({ ...prevData, tags: [...currentTags] }));
       setTagInput(""); 
     }
     
     setSubmitting(true);
-
-    // Now, validateForm will use the potentially updated formData.tags
     if (!validateForm()) {
       setSubmitting(false);
       return;
     }
     
-    // formData.tags should now be up-to-date.
     const cleanedFormData = {
       name: formData.name.trim(),
       startDate: formData.startDate,
@@ -111,15 +95,14 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
     
     logger.log("Submitting form data:", cleanedFormData);
     onSubmit(cleanedFormData);
-    // Note: setSubmitting(false) is handled by the useEffect that depends on 'open'
-    // which is generally fine as the form closes/resets.
   };
 
-  const handleAddTag = (tag) => {
-    if (tag && !formData.tags.includes(tag)) {
+  const handleAddTag = () => {
+    const trimmedTag = tagInput.trim();
+    if (trimmedTag && !formData.tags.includes(trimmedTag)) {
       setFormData({
         ...formData,
-        tags: [...formData.tags, tag],
+        tags: [...formData.tags, trimmedTag],
       });
     }
     setTagInput("");
@@ -135,6 +118,15 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
   const handleColorChange = (colorId) => {
     logger.log("Color ID changed:", colorId);
     setFormData({ ...formData, colorId });
+  };
+
+  const handleDelete = () => {
+    if (event && window.confirm(`¿Estás seguro de que quieres eliminar el evento "${event.name}"?`)) {
+      if (onDelete) {
+        onDelete(event.id); // Pass event.id to the onDelete handler
+      }
+      onClose(); // Close the form
+    }
   };
 
   return (
@@ -220,53 +212,69 @@ const EventForm = ({ open, onClose, onSubmit, event = null }) => {
             </FormControl>
 
             <Box>
-              <Autocomplete
-                multiple
-                value={formData.tags}
-                onChange={(event, newValue) =>
-                  setFormData({ ...formData, tags: newValue })
-                }
-                options={[]}
-                freeSolo
-                disabled={submitting}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip
-                      label={option}
-                      {...getTagProps({ index })}
-                      onDelete={() => handleRemoveTag(option)}
-                    />
-                  ))
-                }
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Tags"
-                    placeholder="Add tags"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddTag(tagInput);
-                      }
-                    }}
+              <Typography variant="subtitle1" gutterBottom>
+                Tags
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 1 }}>
+                {formData.tags.map((tag) => (
+                  <Chip
+                    key={tag}
+                    label={tag}
+                    onDelete={() => handleRemoveTag(tag)}
+                    disabled={submitting}
                   />
-                )}
-              />
+                ))}
+              </Box>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <TextField
+                  label="Add a tag"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddTag();
+                    }
+                  }}
+                  fullWidth
+                  disabled={submitting}
+                  sx={{ flexGrow: 1 }}
+                />
+                <Button
+                  variant="outlined"
+                  onClick={handleAddTag}
+                  disabled={submitting || !tagInput.trim()}
+                >
+                  Add Tag
+                </Button>
+              </Box>
             </Box>
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={onClose} disabled={submitting}>Cancel</Button>
-          <Button 
-            type="submit" 
-            variant="contained" 
-            color="primary"
-            disabled={submitting}
-          >
-            {event ? "Update" : "Create"}
-          </Button>
+        <DialogActions sx={{ justifyContent: 'space-between', p: '16px 24px' }}>
+          <Box>
+            {event && onDelete && ( // Conditionally render Delete button
+              <Button 
+                onClick={handleDelete} 
+                color="error" 
+                disabled={submitting}
+                variant="outlined" // Optional: make it less prominent than primary actions
+              >
+                Eliminar
+              </Button>
+            )}
+          </Box>
+          <Box>
+            <Button onClick={onClose} disabled={submitting} sx={{ mr: 1 }}>Cancel</Button>
+            <Button 
+              type="submit" 
+              variant="contained" 
+              color="primary"
+              disabled={submitting}
+            >
+              {event ? "Update" : "Create"}
+            </Button>
+          </Box>
         </DialogActions>
       </form>
     </Dialog>

@@ -12,7 +12,7 @@ export const GlobalContext = createContext();
 const USER_CONFIG_STORAGE_KEY = "chronicon_user_config";
 
 const defaultConfig = {
-  darkMode: false,
+  theme: "softDark", // Changed from darkMode: false
 };
 
 export const GlobalProvider = ({ children }) => {
@@ -21,6 +21,11 @@ export const GlobalProvider = ({ children }) => {
       const storedConfig = localStorage.getItem(USER_CONFIG_STORAGE_KEY);
       if (storedConfig) {
         const parsedConfig = JSON.parse(storedConfig);
+        // Ensure backward compatibility or migration if 'darkMode' exists
+        if (parsedConfig.hasOwnProperty('darkMode')) {
+          parsedConfig.theme = parsedConfig.darkMode ? 'dark' : 'light';
+          delete parsedConfig.darkMode; // Remove old key
+        }
         delete parsedConfig.firstDayOfWeek; // Explicitly remove it
         return { ...defaultConfig, ...parsedConfig };
       }

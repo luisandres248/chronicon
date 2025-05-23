@@ -18,75 +18,103 @@ function AppContent() {
   const navigate = useNavigate();
   const [authMessage, setAuthMessage] = useState(null);
 
-  const theme = useMemo(
+  const lightTheme = useMemo(
     () =>
       createTheme({
         palette: {
-          mode: config.darkMode ? "dark" : "light",
+          mode: "light",
           primary: {
-            main: "#2196f3",
+            main: "#1976d2", // Default MUI blue
           },
           secondary: {
-            main: "#f50057",
+            main: "#dc004e", // Default MUI pink
           },
-          ...(config.darkMode
-            ? {
-                background: {
-                  default: "#334155", // Slate 700
-                  paper: "#475569", // Slate 600
-                },
-                text: {
-                  primary: "#f8fafc",
-                  secondary: "#cbd5e1",
-                },
-              }
-            : {
-                background: {
-                  default: "#f8fafc",
-                  paper: "#ffffff",
-                },
-                text: {
-                  primary: "#0f172a",
-                  secondary: "#475569",
-                },
-              }),
+          background: {
+            default: "#f8fafc", // A light gray
+            paper: "#ffffff",
+          },
+          text: {
+            primary: "#0f172a", // Dark slate for primary text
+            secondary: "#475569", // Lighter slate for secondary text
+          },
+        },
+      }),
+    []
+  );
+
+  const darkTheme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: "dark",
+          primary: {
+            main: "#90caf9", // Lighter blue for dark mode
+          },
+          secondary: {
+            main: "#f48fb1", // Lighter pink for dark mode
+          },
+          background: {
+            default: "#121212", // Standard dark background
+            paper: "#1e1e1e", // Slightly lighter for surfaces in dark mode
+          },
+        },
+      }),
+    []
+  );
+
+  const softDarkTheme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: "dark", // Base it on dark mode
+          primary: {
+            main: "#78909C", // Grayish blue (blueGrey[400])
+          },
+          secondary: {
+            main: "#A1887F", // Grayish Brown (brown[300]) for secondary if needed
+          },
+          background: {
+            default: "#2F4F4F", // Dark slate gray
+            paper: "#424242", // Slightly lighter gray for surfaces
+          },
+          text: {
+            primary: "#E0E0E0", // Light gray for primary text for contrast
+            secondary: "#BDBDBD", // Slightly darker light gray for secondary text
+          },
         },
         components: {
           MuiAppBar: {
             styleOverrides: {
               root: {
-                backgroundColor: config.darkMode ? "#0f172a" : "#1976d2",
+                backgroundColor: "#263238", // Darker shade for AppBar in softDark
               },
             },
           },
           MuiDrawer: {
             styleOverrides: {
               paper: {
-                backgroundColor: config.darkMode ? "#0f172a" : "#ffffff",
-              },
-            },
-          },
-          MuiListItemIcon: {
-            styleOverrides: {
-              root: {
-                color: config.darkMode ? "#60a5fa" : "inherit",
-              },
-            },
-          },
-          MuiListItemText: {
-            styleOverrides: {
-              primary: {
-                color: config.darkMode ? "#f8fafc" : "inherit",
+                backgroundColor: "#2F4F4F", // Matching drawer with background
               },
             },
           },
         },
       }),
-    [config.darkMode]
+    []
   );
 
+  const selectedTheme = useMemo(() => {
+    if (config.theme === "light") return lightTheme;
+    if (config.theme === "dark") return darkTheme;
+    if (config.theme === "softDark") return softDarkTheme;
+    return softDarkTheme; // Default to softDark if theme is somehow unset
+  }, [config.theme, lightTheme, darkTheme, softDarkTheme]);
+
+  // Cleanup old component overrides that were dependent on darkMode
+  // Specific component overrides can be added to each theme definition if needed.
+  // For example, MuiAppBar, MuiDrawer, MuiListItemIcon, MuiListItemText
+
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={selectedTheme}>
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <CssBaseline />
         <div style={{ display: "flex", minHeight: "100vh" }}>

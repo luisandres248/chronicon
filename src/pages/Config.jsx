@@ -3,8 +3,6 @@
 import { useContext } from "react";
 import {
   Typography,
-  Switch,
-  FormControlLabel,
   Select,
   MenuItem,
   FormControl,
@@ -18,15 +16,28 @@ import {
   CardContent,
   CardHeader,
 } from "@mui/material";
-import { DarkMode, WbSunny } from "@mui/icons-material";
+// Removed WbSunny and DarkMode icons as they are no longer used with the Select
 import { GlobalContext } from "../context/GlobalContext";
 
 const Config = () => {
   const { config, updateConfig } = useContext(GlobalContext);
-  const theme = useTheme();
+  const theme = useTheme(); // useTheme hook to access current theme if needed for styling
 
-  const handleDarkModeChange = (event) => {
-    updateConfig({ darkMode: event.target.checked });
+  const handleThemeChange = (event) => {
+    updateConfig({ theme: event.target.value });
+  };
+
+  const getThemeName = (themeValue) => {
+    switch (themeValue) {
+      case "light":
+        return "Claro";
+      case "dark":
+        return "Oscuro";
+      case "softDark":
+        return "Oscuro Suave";
+      default:
+        return "Desconocido";
+    }
   };
 
   return (
@@ -49,26 +60,27 @@ const Config = () => {
               }}
             />
             <CardContent>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                <WbSunny sx={{ color: theme.palette.mode === 'dark' ? theme.palette.text.secondary : '#f9a825', mr: 1 }} />
-                <FormControlLabel
-                  control={
-                    <Switch 
-                      checked={config.darkMode} 
-                      onChange={handleDarkModeChange}
-                      color="primary"
-                    />
-                  }
-                  label=""
-                />
-                <DarkMode sx={{ color: theme.palette.mode === 'dark' ? '#90caf9' : theme.palette.text.secondary, ml: 1 }} />
-                <Typography sx={{ ml: 2 }}>
-                  {config.darkMode ? 'Modo oscuro activado' : 'Modo claro activado'}
-                </Typography>
-              </Box>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="theme-select-label">Tema</InputLabel>
+                <Select
+                  labelId="theme-select-label"
+                  id="theme-select"
+                  value={config.theme || 'softDark'} // Ensure a default if somehow undefined
+                  label="Tema"
+                  onChange={handleThemeChange}
+                >
+                  <MenuItem value="light">Claro</MenuItem>
+                  <MenuItem value="dark">Oscuro</MenuItem>
+                  <MenuItem value="softDark">Oscuro Suave</MenuItem>
+                </Select>
+              </FormControl>
+              
+              <Typography sx={{ mb: 2 }}>
+                Tema actual: {getThemeName(config.theme)}
+              </Typography>
               
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                El modo oscuro reduce la fatiga visual en entornos con poca luz y ahorra batería en dispositivos con pantallas OLED.
+                Selecciona tu tema preferido. El tema "Oscuro Suave" ofrece una alternativa oscura con menor contraste. Todos los temas oscuros ayudan a reducir la fatiga visual en condiciones de poca luz.
               </Typography>
             </CardContent>
           </Card>
@@ -77,7 +89,7 @@ const Config = () => {
       
       <Box sx={{ mt: 4, p: 2, borderRadius: 1, bgcolor: theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.08)' : 'rgba(33, 150, 243, 0.08)' }}>
         <Typography variant="body2" color="text.secondary">
-          Los cambios en la configuración se aplican inmediatamente y se guardan automáticamente para futuras sesiones.
+          Los cambios en la configuración de apariencia se aplican inmediatamente y se guardan automáticamente para futuras sesiones.
         </Typography>
       </Box>
     </Box>
