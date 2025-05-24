@@ -468,6 +468,7 @@ const EventsGrid = () => {
       >
         <Add />
       </Fab>
+      )} 
 
       <EventForm
         open={formOpen}
