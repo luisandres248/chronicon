@@ -469,7 +469,7 @@ const EventsGrid = () => {
         <Add />
       </Fab>
 
-      <EventForm // Main form for create/edit
+      <EventForm
         open={formOpen}
         onClose={handleFormClose}
         onSubmit={selectedEvent ? handleUpdateEvent : handleCreateEvent}
