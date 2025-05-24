@@ -1,52 +1,51 @@
 import React from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography, Box } from '@mui/material';
+import { Dialog, DialogContent, Button, Box } from '@mui/material';
+import { CalendarMonth, Repeat } from '@mui/icons-material'; // Import icons
 
 const EventActionDialog = ({ open, onClose, event, onGoToCalendar, onAddRecurrence }) => {
-  // If no event is provided, don't render the dialog.
-  // This can happen if the dialog is part of a component that might not yet have event data.
   if (!event) {
     return null;
   }
 
-  const handleGoToCalendar = () => {
+  const handleGoToCalendarClick = () => {
     if (onGoToCalendar) {
       onGoToCalendar(event);
     }
-    onClose(); // Close dialog after action
+    onClose(); 
   };
 
-  const handleAddRecurrence = () => {
+  const handleAddRecurrenceClick = () => {
     if (onAddRecurrence) {
       onAddRecurrence(event);
     }
-    onClose(); // Close dialog after action
+    onClose(); 
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth aria-labelledby="event-action-dialog-title">
-      <DialogTitle id="event-action-dialog-title">
-        Acciones para: {event.name}
-      </DialogTitle>
-      <DialogContent>
-        <Typography variant="body1" sx={{ mt: 1 }}>
-          Selecciona la acción que deseas realizar para este evento.
-        </Typography>
-        {/* Optional: Could add more event details here if needed */}
-        {/* <Typography variant="caption">ID: {event.id}</Typography> */}
-      </DialogContent>
-      <DialogActions sx={{ p: '16px 24px', display: 'flex', justifyContent: 'space-between' }}>
-        <Button onClick={onClose} color="secondary">
-          Cancelar
-        </Button>
-        <Box>
-          <Button onClick={handleGoToCalendar} variant="outlined" sx={{ mr: 1 }}>
-            Ver en Calendario
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      {/* Removed DialogTitle */}
+      <DialogContent sx={{ pt: 2, '& .MuiButton-root': { mb: 1.5, justifyContent: 'flex-start' } }}> 
+        {/* DialogContent will contain the buttons directly */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch' }}>
+          <Button 
+            onClick={handleGoToCalendarClick} 
+            variant="text" // Using text variant for a cleaner look
+            startIcon={<CalendarMonth />}
+            sx={{ color: 'text.primary' }} // Ensure good contrast
+          >
+            Ver en el calendario
           </Button>
-          <Button onClick={handleAddRecurrence} variant="contained">
-            Añadir Recurrencia
+          <Button 
+            onClick={handleAddRecurrenceClick} 
+            variant="text" // Using text variant
+            startIcon={<Repeat />}
+            sx={{ color: 'text.primary' }}
+          >
+            Añadir recurrencia
           </Button>
         </Box>
-      </DialogActions>
+      </DialogContent>
+      {/* Removed DialogActions and Cancel button */}
     </Dialog>
   );
 };

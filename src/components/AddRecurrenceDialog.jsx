@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Box } from '@mui/material';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker'; // Changed from DateTimePicker
 // Assuming LocalizationProvider is already set up in App.jsx or main.jsx,
 // which is a valid assumption as EventForm.jsx uses it.
 
@@ -34,15 +34,15 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth aria-labelledby="add-recurrence-dialog-title">
       <DialogTitle id="add-recurrence-dialog-title">
-        Añadir Recurrencia para: {eventToRecur.name}
+        Añadir Ocurrencia para: {eventToRecur.name} 
       </DialogTitle>
       <DialogContent sx={{ mt: 2 }}> 
         {/* Added sx={{ mt: 2 }} for a bit of top margin as per the example's good practice */}
-        <DateTimePicker
+        <DatePicker // Changed from DateTimePicker
           label="Fecha de la Recurrencia"
           value={recurrenceDate}
           onChange={(newValue) => setRecurrenceDate(newValue)}
-          slotProps={{ textField: { fullWidth: true, required: true } }} // Ensure the DateTimePicker takes full width
+          slotProps={{ textField: { fullWidth: true, required: true } }} // Ensure the DatePicker takes full width
         />
         {/* 
           Optionally, display some original event details here if useful for context, e.g.,

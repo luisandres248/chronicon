@@ -33,8 +33,8 @@ const Config = () => {
         return "Claro";
       case "dark":
         return "Oscuro";
-      case "softDark":
-        return "Oscuro Suave";
+      case "chronicon":
+        return "Chronicon";
       default:
         return "Desconocido";
     }
@@ -65,13 +65,13 @@ const Config = () => {
                 <Select
                   labelId="theme-select-label"
                   id="theme-select"
-                  value={config.theme || 'softDark'} // Ensure a default if somehow undefined
+                  value={config.theme || 'chronicon'} // Ensure a default if somehow undefined
                   label="Tema"
                   onChange={handleThemeChange}
                 >
                   <MenuItem value="light">Claro</MenuItem>
                   <MenuItem value="dark">Oscuro</MenuItem>
-                  <MenuItem value="softDark">Oscuro Suave</MenuItem>
+                  <MenuItem value="chronicon">Chronicon</MenuItem>
                 </Select>
               </FormControl>
               
@@ -80,7 +80,7 @@ const Config = () => {
               </Typography>
               
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Selecciona tu tema preferido. El tema "Oscuro Suave" ofrece una alternativa oscura con menor contraste. Todos los temas oscuros ayudan a reducir la fatiga visual en condiciones de poca luz.
+                Selecciona tu tema preferido. El tema "Chronicon" es el nuevo tema oscuro por defecto, ofreciendo una experiencia visual cohesiva. Todos los temas oscuros ayudan a reducir la fatiga visual en condiciones de poca luz.
               </Typography>
             </CardContent>
           </Card>
