@@ -107,3 +107,12 @@ This section outlines the project's architecture and potential future enhancemen
 *   **Completed**: Fixed `ReferenceError: theme is not defined` in `EventCalendar.jsx` by correctly initializing the `theme` object using the `useTheme` hook.
 *   **Completed**: Addressed a "Rules of Hooks" violation in `EventCalendar.jsx` by ensuring all hooks are called unconditionally at the top level of the component.
 *   **Completed**: Corrected `ReferenceError: Cannot access 'defaultEventColor' before initialization` in `EventCalendar.jsx` by reordering variable declarations to ensure proper initialization before use.
+
+### 6. Visual and Style Enhancements (Planned)
+
+*   **Logo Redesign**: Modernize the "Chronicon" logo for a more polished, elegant, minimalist, simple, clean, and beautiful look.
+*   **Theme Expansion**: Implement 5 distinct themes (Light, Dark, Chronicon, and two new aesthetically pleasing themes) with harmonious and aesthetically proven color schemes. Ensure theme colors harmonize with calendar event colors.
+*   **Font Review**: Evaluate and potentially update the application's fonts for a modern, clean, and beautiful aesthetic.
+*   **Configuration Page Cleanup**: Remove two specific, unnecessary messages from the configuration screen.
+*   **Event Color Naming**: Replace generic "Color 1, 2, 3..." with real, descriptive names for event colors.
+*   **Internationalization (i18n)**: Implement an i18n layer with English as the default language and a language selector in the configuration for English and Spanish. Ensure no mixed languages.

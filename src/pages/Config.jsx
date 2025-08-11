@@ -1,6 +1,7 @@
 "use client";
 
 import { useContext } from "react";
+import { useTranslation } from 'react-i18next';
 import {
   Typography,
   Select,
@@ -21,6 +22,7 @@ import { GlobalContext } from "../context/GlobalContext";
 
 const Config = () => {
   const { config, updateConfig } = useContext(GlobalContext);
+  const { t, i18n } = useTranslation();
   const theme = useTheme(); // useTheme hook to access current theme if needed for styling
 
   const handleThemeChange = (event) => {
@@ -30,27 +32,31 @@ const Config = () => {
   const getThemeName = (themeValue) => {
     switch (themeValue) {
       case "light":
-        return "Claro";
+        return t('lightTheme');
       case "dark":
-        return "Oscuro";
+        return t('darkTheme');
       case "chronicon":
-        return "Chronicon";
+        return t('chroniconTheme');
+      case "oceanBreeze":
+        return t('oceanBreezeTheme');
+      case "sunsetGlow":
+        return t('sunsetGlowTheme');
       default:
-        return "Desconocido";
+        return t('unknownTheme');
     }
   };
 
   return (
     <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
       <Typography variant="h4" gutterBottom sx={{ mb: 4, fontWeight: 500 }}>
-        Configuración
+        {t('configTitle')}
       </Typography>
       
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
           <Card elevation={2}>
             <CardHeader 
-              title="Apariencia" 
+              title={t('appearanceSectionTitle')} 
               sx={{ 
                 borderBottom: `1px solid ${theme.palette.divider}`,
                 '& .MuiCardHeader-title': {
@@ -61,37 +67,58 @@ const Config = () => {
             />
             <CardContent>
               <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel id="theme-select-label">Tema</InputLabel>
+                <InputLabel id="theme-select-label">{t('themeLabel')}</InputLabel>
                 <Select
                   labelId="theme-select-label"
                   id="theme-select"
                   value={config.theme || 'chronicon'} // Ensure a default if somehow undefined
-                  label="Tema"
+                  label={t('themeLabel')}
                   onChange={handleThemeChange}
                 >
-                  <MenuItem value="light">Claro</MenuItem>
-                  <MenuItem value="dark">Oscuro</MenuItem>
-                  <MenuItem value="chronicon">Chronicon</MenuItem>
+                  <MenuItem value="light">{t('lightTheme')}</MenuItem>
+                  <MenuItem value="dark">{t('darkTheme')}</MenuItem>
+                  <MenuItem value="chronicon">{t('chroniconTheme')}</MenuItem>
+                  <MenuItem value="oceanBreeze">{t('oceanBreezeTheme')}</MenuItem>
+                  <MenuItem value="sunsetGlow">{t('sunsetGlowTheme')}</MenuItem>
                 </Select>
               </FormControl>
               
               <Typography sx={{ mb: 2 }}>
-                Tema actual: {getThemeName(config.theme)}
-              </Typography>
-              
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                Selecciona tu tema preferido. El tema "Chronicon" es el nuevo tema oscuro por defecto, ofreciendo una experiencia visual cohesiva. Todos los temas oscuros ayudan a reducir la fatiga visual en condiciones de poca luz.
+                {t('currentTheme')}: {getThemeName(config.theme)}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
+        <Grid item xs={12} md={6}>
+          <Card elevation={2}>
+            <CardHeader 
+              title={t('languageSectionTitle')} 
+              sx={{ 
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                '& .MuiCardHeader-title': {
+                  fontSize: '1.2rem',
+                  fontWeight: 500,
+                }
+              }}
+            />
+            <CardContent>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="language-select-label">{t('languageLabel')}</InputLabel>
+                <Select
+                  labelId="language-select-label"
+                  id="language-select"
+                  value={i18n.language}
+                  label={t('languageLabel')}
+                  onChange={(e) => i18n.changeLanguage(e.target.value)}
+                >
+                  <MenuItem value="en">English</MenuItem>
+                  <MenuItem value="es">Español</MenuItem>
+                </Select>
+              </FormControl>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
-      
-      <Box sx={{ mt: 4, p: 2, borderRadius: 1, bgcolor: theme.palette.mode === 'dark' ? 'rgba(144, 202, 249, 0.08)' : 'rgba(33, 150, 243, 0.08)' }}>
-        <Typography variant="body2" color="text.secondary">
-          Los cambios en la configuración de apariencia se aplican inmediatamente y se guardan automáticamente para futuras sesiones.
-        </Typography>
-      </Box>
     </Box>
   );
 };

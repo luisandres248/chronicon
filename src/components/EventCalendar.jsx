@@ -40,6 +40,7 @@ import {
 } from "@mui/icons-material";
 import { format, differenceInDays, differenceInMonths, differenceInYears, differenceInSeconds, differenceInHours, differenceInMinutes, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, getMonth, getYear, isSameDay, startOfDay, endOfDay, getDay } from "date-fns";
 import { es } from "date-fns/locale";
+import { useTranslation } from 'react-i18next';
 import { GlobalContext } from "../context/GlobalContext";
 import { groupEventsByName, createEventObject, parseGoogleEvent } from "../services/eventService";
 import EventForm from "./EventForm";
@@ -251,6 +252,7 @@ function EventCalendar() {
     events, appLoading, eventsLoading, processing, error, authError,
     calendar, user, handleSignIn, handleSignOut, handleCreateEvent, handleUpdateEvent, handleDeleteEvent, handleSaveRecurrence, calendarColors, config 
   } = useContext(GlobalContext);
+  const { t } = useTranslation();
   
   const [selectedEvent, setSelectedEvent] = useState("");
   const [highlightedDates, setHighlightedDates] = useState([]);
@@ -481,16 +483,16 @@ function EventCalendar() {
   if (!user) { 
     return (
       <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
-        <Typography variant="h6" gutterBottom>Bienvenido a Chronicon</Typography>
-        <Typography variant="body1" sx={{ textAlign: 'center', maxWidth: '600px', mb: 3 }}>Por favor inicia sesión con tu cuenta de Google para acceder a tu calendario Chronicon.</Typography>
-        <Button variant="contained" color="primary" onClick={handleSignIn} disabled={authLoading}>{authLoading ? "Iniciando sesión..." : "Iniciar sesión con Google"}</Button>
+        <Typography variant="h6" gutterBottom>{t('welcomeTitle')}</Typography>
+        <Typography variant="body1" sx={{ textAlign: 'center', maxWidth: '600px', mb: 3 }}>{t('welcomeMessage')}</Typography>
+        <Button variant="contained" color="primary" onClick={handleSignIn} disabled={authLoading}>{authLoading ? t('signingIn') : t('signInWithGoogle')}</Button>
         {authError && <Alert severity={authError.startsWith("Error:") ? "error" : "info"} sx={{ mt: 2, maxWidth: '600px' }}>{authError.startsWith("Error:") ? authError.substring(7) : authError.startsWith("Status:") ? authError.substring(8) : authError}</Alert>}
-        {popupBlocked && <Alert severity="warning" sx={{ mt: 2, maxWidth: '600px' }}>El navegador bloqueó la ventana emergente. Por favor, asegúrate de permitir ventanas emergentes para este sitio y vuelve a intentarlo.</Alert>}
+        {popupBlocked && <Alert severity="warning" sx={{ mt: 2, maxWidth: '600px' }}>{t('popupBlockedMessage')}</Alert>}
       </Box>
     );
   }
-  if (!calendar) return <Box sx={{ p: 3 }}><Typography>Por favor selecciona un calendario para ver los eventos.</Typography></Box>;
-  if (!events.length && !eventsLoading) return <Box sx={{ p: 3 }}><Typography>No hay eventos disponibles. Crea uno en la vista de Grid.</Typography></Box>;
+  if (!calendar) return <Box sx={{ p: 3 }}><Typography>{t('selectCalendarMessage')}</Typography></Box>;
+  if (!events.length && !eventsLoading) return <Box sx={{ p: 3 }}><Typography>{t('noEventsMessage')}</Typography></Box>;
 
   const uniqueEventNames = Object.keys(eventsByName);
   const hardcodedDaySize = 24; 

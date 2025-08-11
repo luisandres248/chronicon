@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback } from "react";
+import { createTheme, ThemeProvider } from "@mui/material/styles";
 import * as googleService from "../services/googleService";
 import * as eventService from "../services/eventService";
 import logger from "../utils/logger.js";
@@ -8,8 +9,138 @@ export const GlobalContext = createContext();
 const USER_CONFIG_STORAGE_KEY = "chronicon_user_config";
 
 const defaultConfig = {
-  theme: "softDark",
+  theme: "chronicon",
 };
+
+const lightTheme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#2196f3',
+    },
+    secondary: {
+      main: '#ff4081',
+    },
+    background: {
+      default: '#f5f5f5',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: 'rgba(0, 0, 0, 0.87)',
+      secondary: 'rgba(0, 0, 0, 0.6)',
+    },
+  },
+  typography: {
+    fontFamily: 'Inter, sans-serif',
+    h6: {
+      fontFamily: 'Montserrat, sans-serif',
+    },
+  },
+});
+
+const darkTheme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: {
+      main: '#90caf9',
+    },
+    secondary: {
+      main: '#f48fb1',
+    },
+    background: {
+      default: '#121212',
+      paper: '#1e1e1e',
+    },
+    text: {
+      primary: '#ffffff',
+      secondary: 'rgba(255, 255, 255, 0.7)',
+    },
+  },
+  typography: {
+    fontFamily: 'Inter, sans-serif',
+    h6: {
+      fontFamily: 'Montserrat, sans-serif',
+    },
+  },
+});
+
+const chroniconTheme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary: {
+      main: '#673ab7', // Deep Purple
+    },
+    secondary: {
+      main: '#ffc107', // Amber
+    },
+    background: {
+      default: '#212121',
+      paper: '#303030',
+    },
+    text: {
+      primary: '#e0e0e0',
+      secondary: '#bdbdbd',
+    },
+  },
+  typography: {
+    fontFamily: 'Inter, sans-serif',
+    h6: {
+      fontFamily: 'Montserrat, sans-serif',
+    },
+  },
+});
+
+const oceanBreezeTheme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#00bcd4', // Cyan
+    },
+    secondary: {
+      main: '#4dd0e1', // Light Cyan
+    },
+    background: {
+      default: '#e0f7fa',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#263238',
+      secondary: '#455a64',
+    },
+  },
+  typography: {
+    fontFamily: 'Inter, sans-serif',
+    h6: {
+      fontFamily: 'Montserrat, sans-serif',
+    },
+  },
+});
+
+const sunsetGlowTheme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#ff9800', // Orange
+    },
+    secondary: {
+      main: '#ffb74d', // Light Orange
+    },
+    background: {
+      default: '#fff3e0',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#3e2723',
+      secondary: '#5d4037',
+    },
+  },
+  typography: {
+    fontFamily: 'Inter, sans-serif',
+    h6: {
+      fontFamily: 'Montserrat, sans-serif',
+    },
+  },
+});
 
 export const GlobalProvider = ({ children }) => {
   // Configuration state
@@ -240,6 +371,23 @@ export const GlobalProvider = ({ children }) => {
     }
   };
 
+  const selectedTheme = React.useMemo(() => {
+    switch (config.theme) {
+      case "light":
+        return lightTheme;
+      case "dark":
+        return darkTheme;
+      case "chronicon":
+        return chroniconTheme;
+      case "oceanBreeze":
+        return oceanBreezeTheme;
+      case "sunsetGlow":
+        return sunsetGlowTheme;
+      default:
+        return chroniconTheme; // Default to chronicon theme
+    }
+  }, [config.theme]);
+
   const value = {
     // State
     config,
@@ -266,7 +414,9 @@ export const GlobalProvider = ({ children }) => {
 
   return (
     <GlobalContext.Provider value={value}>
-      {children}
+      <ThemeProvider theme={selectedTheme}>
+        {children}
+      </ThemeProvider>
     </GlobalContext.Provider>
   );
 };

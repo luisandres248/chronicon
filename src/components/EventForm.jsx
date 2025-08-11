@@ -18,10 +18,12 @@ import {
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { GlobalContext } from "../context/GlobalContext";
+import { useTranslation } from 'react-i18next';
 import logger from "../utils/logger.js";
 
 const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
   const { calendarColors, loadingColors } = useContext(GlobalContext);
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     name: "",
     startDate: new Date(),
@@ -59,10 +61,10 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
   const validateForm = () => {
     const newErrors = {};
     if (!formData.name || formData.name.trim() === "") {
-      newErrors.name = "El nombre del evento es obligatorio";
+      newErrors.name = t('eventNameRequired');
     }
     if (!formData.startDate || !(formData.startDate instanceof Date) || isNaN(formData.startDate.getTime())) {
-      newErrors.startDate = "La fecha de inicio no es válida";
+      newErrors.startDate = t('invalidStartDate');
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -121,7 +123,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
   };
 
   const handleDelete = () => {
-    if (event && window.confirm(`¿Estás seguro de que quieres eliminar el evento "${event.name}"?`)) {
+    if (event && window.confirm(t('confirmDeleteEvent', { eventName: event.name }))) {
       if (onDelete) {
         onDelete(event.id); // Pass event.id to the onDelete handler
       }
@@ -132,11 +134,11 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <form onSubmit={handleSubmit}>
-        <DialogTitle>{event ? "Edit Event" : "New Event"}</DialogTitle>
+        <DialogTitle>{event ? t('editEventTitle') : t('newEventTitle')}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
             <TextField
-              label="Event Name"
+              label={t('eventNameLabel')}
               value={formData.name}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
@@ -149,7 +151,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
             />
 
             <DatePicker
-              label="Start Date"
+              label={t('startDateLabel')}
               value={formData.startDate}
               onChange={(newValue) =>
                 setFormData({ ...formData, startDate: newValue })
@@ -165,7 +167,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
             />
 
             <TextField
-              label="Description"
+              label={t('descriptionLabel')}
               value={formData.description}
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
@@ -177,15 +179,15 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
             />
 
             <FormControl fullWidth disabled={submitting || loadingColors}>
-              <InputLabel id="event-color-label">Color del evento</InputLabel>
+              <InputLabel id="event-color-label">{t('eventColorLabel')}</InputLabel>
               <Select
                 labelId="event-color-label"
                 value={formData.colorId || ""}
                 onChange={(e) => handleColorChange(e.target.value || null)}
-                label="Color del evento"
+                label={t('eventColorLabel')}
               >
                 <MenuItem value="">
-                  <em>Predeterminado</em>
+                  <em>{t('defaultColorOption')}</em>
                 </MenuItem>
                 {calendarColors && Object.entries(calendarColors).map(([id, colorData]) => (
                   <MenuItem key={id} value={id}>
@@ -198,7 +200,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
                         borderRadius: '4px'
                       }}
                     />
-                    <span>Color {id}</span>
+                    <span>{t('colorName' + id)}</span>
                   </MenuItem>
                 ))}
               </Select>
@@ -211,7 +213,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
 
             <Box>
               <Typography variant="subtitle1" gutterBottom>
-                Tags
+                {t('tagsLabel')}
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 1 }}>
                 {formData.tags.map((tag) => (
@@ -225,7 +227,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
               </Box>
               <Box sx={{ display: "flex", gap: 1 }}>
                 <TextField
-                  label="Add a tag"
+                  label={t('addTagLabel')}
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyPress={(e) => {
@@ -243,7 +245,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
                   onClick={handleAddTag}
                   disabled={submitting || !tagInput.trim()}
                 >
-                  Add Tag
+                  {t('addTagButton')}
                 </Button>
               </Box>
             </Box>
@@ -258,19 +260,19 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
                 disabled={submitting}
                 variant="outlined"
               >
-                Eliminar
+                {t('deleteButton')}
               </Button>
             )}
           </Box>
           <Box>
-            <Button onClick={onClose} disabled={submitting} sx={{ mr: 1 }}>Cancel</Button>
+            <Button onClick={onClose} disabled={submitting} sx={{ mr: 1 }}>{t('cancelButton')}</Button>
             <Button 
               type="submit" 
               variant="contained" 
               color="primary"
               disabled={submitting}
             >
-              {event ? "Update" : "Create"}
+              {event ? t('updateButton') : t('createButton')}
             </Button>
           </Box>
         </DialogActions>
