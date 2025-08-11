@@ -19,7 +19,6 @@ let tokenExpiryTime = null;
  */
 const setTokenExpiryTime = () => {
   tokenExpiryTime = Date.now() + 55 * 60 * 1000; // 55 minutes in milliseconds
-  logger.log("Token expiry time set to:", new Date(tokenExpiryTime).toLocaleTimeString());
 };
 
 /**
@@ -49,7 +48,6 @@ const loadStoredSession = () => {
       if (tokenTimestamp) {
         // Restore expiry time, calculated as 55 minutes from the original grant time.
         tokenExpiryTime = parseInt(tokenTimestamp, 10) + 55 * 60 * 1000;
-        logger.log("Restored token expiry time to:", new Date(tokenExpiryTime).toLocaleTimeString());
       }
     }
 
@@ -76,7 +74,7 @@ const loadStoredSession = () => {
 export const refreshToken = () => {
   return new Promise((resolve, reject) => {
     if (tokenRefreshInProgress) {
-      logger.log("Token refresh already in progress, new request rejected.");
+      logger.warn("Token refresh already in progress, new request rejected.");
       // Avoids multiple concurrent refresh attempts.
       return reject(new Error("Token refresh already in progress")); 
     }
@@ -87,7 +85,7 @@ export const refreshToken = () => {
     }
     
     tokenRefreshInProgress = true;
-    logger.log("Refreshing token...");
+    logger.info("Refreshing token...");
 
     // Define the callback for the token client's response.
     tokenClient.callback = async (response) => { 
@@ -112,7 +110,7 @@ export const refreshToken = () => {
         localStorage.setItem("gapi-token-timestamp", Date.now().toString());
         setTokenExpiryTime(); 
         
-        logger.log("Token refreshed successfully");
+        logger.info("Token refreshed successfully");
         resolve(token); 
       } catch (error) {
         logger.error("Error processing token refresh response:", error);
@@ -144,7 +142,7 @@ export const refreshToken = () => {
 export const executeWithTokenRefresh = async (apiCall) => {
   try {
     if (isTokenExpiringSoon()) {
-      logger.log("Token is expiring soon or not set, attempting refresh before API call...");
+      logger.info("Token is expiring soon or not set, attempting refresh before API call...");
       await refreshToken();
     }
     
@@ -152,7 +150,7 @@ export const executeWithTokenRefresh = async (apiCall) => {
   } catch (error) {
     // Check if the error is an authentication error (e.g., 401)
     if (error.status === 401 || (error.result && error.result.error && error.result.error.code === 401)) {
-      logger.log("Received 401 error from API call, attempting to refresh token and retry.");
+      logger.warn("Received 401 error from API call, attempting to refresh token and retry.");
       try {
         await refreshToken();
         // Retry the API call with the new token
@@ -167,6 +165,12 @@ export const executeWithTokenRefresh = async (apiCall) => {
 };
 
 export const initGoogleAPI = async () => {
+  if (!CLIENT_ID || !API_KEY) {
+    const errorMsg = "Google API Client ID or API Key is missing. Please check your .env file.";
+    logger.error(errorMsg);
+    throw new Error(errorMsg);
+  }
+
   if (gapiInitialized) {
     return Promise.resolve(window.gapi);
   }
@@ -281,7 +285,7 @@ export const signIn = (onStatusUpdate) => {
           localStorage.setItem("gapi-token", token);
           localStorage.setItem("gapi-token-timestamp", Date.now().toString());
           setTokenExpiryTime(); 
-          logger.log("SignIn: Token acquired and expiry time set.");
+          logger.info("SignIn: Token acquired and expiry time set.");
 
           // Fetch user profile information.
           const userResponse = await fetch(
@@ -375,7 +379,7 @@ export const signOut = async () => {
     if (window.gapi?.client) {
       window.gapi.client.setToken(null);
     }
-    logger.log("User signed out and session data cleared.");
+    logger.info("User signed out and session data cleared.");
   } catch (error) {
     logger.error("Error during sign out:", error);
   }
@@ -384,14 +388,14 @@ export const signOut = async () => {
 /**
  * Fetches the user's calendar list and finds or creates a calendar named "Chronicon".
  * If created, it's also added to the user's calendar list.
- * @param {Function} [onStatusUpdate] - Optional callback for status updates during the process.
+ * @param {Function} [onStatusUpdate] - Optional callback for status updates during calendar creation.
  * @returns {Promise<object>} The Chronicon calendar object.
  */
 export const getOrCreateChroniconCalendar = async (onStatusUpdate) => {
   return executeWithTokenRefresh(async () => {
     try {
       onStatusUpdate?.("Searching for Chronicon calendar...");
-      logger.log("Fetching user's calendar list.");
+      logger.info("Fetching user's calendar list.");
       const response = await window.gapi.client.calendar.calendarList.list();
       
       if (!response?.result?.items) {
@@ -406,7 +410,7 @@ export const getOrCreateChroniconCalendar = async (onStatusUpdate) => {
 
       if (!chroniconCalendar) {
         onStatusUpdate?.("Chronicon calendar not found. Creating a new one...");
-        logger.log("Chronicon calendar not found, creating new one.");
+        logger.info("Chronicon calendar not found, creating new one.");
         const calendarResource = {
           summary: "Chronicon",
           description: "Calendar for Chronicon events",
@@ -419,10 +423,10 @@ export const getOrCreateChroniconCalendar = async (onStatusUpdate) => {
         await window.gapi.client.calendar.calendarList.insert({ resource: { id: chroniconCalendar.id } });
         
         onStatusUpdate?.("Successfully created and added Chronicon calendar.");
-        logger.log("Chronicon calendar created and added to list successfully:", chroniconCalendar);
+        logger.info("Chronicon calendar created and added to list successfully:", chroniconCalendar);
       } else {
         onStatusUpdate?.("Successfully found Chronicon calendar.");
-        logger.log("Found existing Chronicon calendar:", chroniconCalendar);
+        logger.info("Found existing Chronicon calendar:", chroniconCalendar);
       }
 
       return chroniconCalendar;
@@ -441,7 +445,7 @@ export const getOrCreateChroniconCalendar = async (onStatusUpdate) => {
 export const getCalendarColors = async () => {
   return executeWithTokenRefresh(async () => {
     try {
-      logger.log("Fetching available colors from Google Calendar");
+      logger.info("Fetching available colors from Google Calendar");
       const response = await window.gapi.client.calendar.colors.get();
       
       if (!response || !response.result) {
@@ -449,7 +453,7 @@ export const getCalendarColors = async () => {
         return null;
       }
       
-      logger.log("Available colors:", response.result);
+      logger.info("Available colors:", response.result);
       return response.result;
     } catch (error) {
       logger.error("Error fetching calendar colors:", error);
@@ -461,7 +465,7 @@ export const getCalendarColors = async () => {
 export const fetchCalendarEvents = async (calendarId) => {
   return executeWithTokenRefresh(async () => {
     try {
-      logger.log(`Fetching events for calendar: ${calendarId}`);
+      logger.info(`Fetching events for calendar: ${calendarId}`);
       const response = await window.gapi.client.calendar.events.list({
         calendarId: calendarId,
         showDeleted: false,
@@ -473,7 +477,7 @@ export const fetchCalendarEvents = async (calendarId) => {
         return [];
       }
 
-      logger.log(`Successfully fetched ${response.result.items?.length || 0} events`);
+      logger.info(`Successfully fetched ${response.result.items?.length || 0} events`);
       return response.result.items;
     } catch (error) {
       logger.error("Error fetching events:", error);
@@ -489,7 +493,7 @@ export const createEvent = async (calendarId, event) => {
 
   return executeWithTokenRefresh(async () => {
     try {
-      logger.log("Creating event in Google Calendar:", { calendarId, event });
+      logger.info("Creating event in Google Calendar:", { calendarId, event });
       
       // Validar que el evento tenga los campos requeridos
       if (!event.summary) {
@@ -509,7 +513,7 @@ export const createEvent = async (calendarId, event) => {
         throw new Error("No response from Google Calendar API");
       }
 
-      logger.log("Google Calendar API response:", response.result);
+      logger.info("Google Calendar API response:", response.result);
       return response.result;
     } catch (error) {
       logger.error("Error creating event in Google Calendar:", error);
@@ -525,7 +529,7 @@ export const updateEvent = async (calendarId, eventId, event) => {
 
   return executeWithTokenRefresh(async () => {
     try {
-      logger.log(`Updating event ${eventId} in calendar ${calendarId}`, event);
+      logger.info(`Updating event ${eventId} in calendar ${calendarId}`, event);
       
       // Validar que el evento tenga los campos requeridos
       if (!event.summary) {
@@ -552,7 +556,7 @@ export const updateEvent = async (calendarId, eventId, event) => {
         throw new Error("Invalid response from Google Calendar API");
       }
       
-      logger.log("Event updated successfully:", response.result);
+      logger.info("Event updated successfully:", response.result);
       return response.result;
     } catch (error) {
       logger.error("Error updating event:", error);
@@ -568,14 +572,14 @@ export const deleteEvent = async (calendarId, eventId) => {
 
   return executeWithTokenRefresh(async () => {
     try {
-      logger.log(`Deleting event ${eventId} from calendar ${calendarId}`);
+      logger.info(`Deleting event ${eventId} from calendar ${calendarId}`);
       
       const response = await window.gapi.client.calendar.events.delete({
         calendarId: calendarId,
         eventId: eventId,
       });
       
-      logger.log("Event deleted successfully");
+      logger.info("Event deleted successfully");
       return true;
     } catch (error) {
       logger.error("Error deleting event:", error);

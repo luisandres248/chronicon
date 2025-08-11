@@ -35,16 +35,16 @@ import {
   ViewStream, 
   ViewModule, 
   Repeat as RepeatIcon,
-  Visibility, // Added
-  VisibilityOff // Added
+  Visibility,
+  VisibilityOff
 } from "@mui/icons-material";
 import { format, differenceInDays, differenceInMonths, differenceInYears, differenceInSeconds, differenceInHours, differenceInMinutes, addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, getMonth, getYear, isSameDay, startOfDay, endOfDay, getDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { GlobalContext } from "../context/GlobalContext";
 import { groupEventsByName, createEventObject, parseGoogleEvent } from "../services/eventService";
-import { updateEvent as updateGoogleEvent, createEvent, signIn, deleteEvent } from "../services/googleService"; 
 import EventForm from "./EventForm";
 import AddRecurrenceDialog from "./AddRecurrenceDialog";
+import logger from "../utils/logger.js";
 
 /**
  * StatChip component
@@ -245,9 +245,11 @@ const YearSeparator = React.memo(({ year }) => { /* ... (unchanged) ... */
  */
 function EventCalendar() {
   const location = useLocation();
+  const theme = useTheme();
+  const defaultEventColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3';
   const { 
-    events, loading, error, updateEvent: updateEventInState, addEvent, deleteEvent: deleteEventInState,
-    calendar, user, setUser, setCalendar, calendarColors, config 
+    events, appLoading, eventsLoading, processing, error, authError,
+    calendar, user, handleSignIn, handleSignOut, handleCreateEvent, handleUpdateEvent, handleDeleteEvent, handleSaveRecurrence, calendarColors, config 
   } = useContext(GlobalContext);
   
   const [selectedEvent, setSelectedEvent] = useState("");
@@ -256,13 +258,8 @@ function EventCalendar() {
   const [eventStats, setEventStats] = useState(null);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedEventObject, setSelectedEventObject] = useState(null);
-  const [processing, setProcessing] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState(null);
-  const [popupBlocked, setPopupBlocked] = useState(false);
   const [calendarViewMode, setCalendarViewMode] = useState("traditional"); 
-  const theme = useTheme();
 
   const [isRecurrenceDialogOpen, setIsRecurrenceDialogOpen] = useState(false);
   const [eventForRecurrenceDialog, setEventForRecurrenceDialog] = useState(null);
@@ -274,7 +271,7 @@ function EventCalendar() {
 
   const eventsByName = useMemo(() => groupEventsByName(events), [events]);
 
-  useEffect(() => { /* ... (unchanged selectedEvent logic) ... */ 
+  useEffect(() => { 
     if (location.state?.selectedEventId) {
         const eventName = events.find(e => e.id === location.state.selectedEventId)?.name;
         if (eventName) setSelectedEvent(eventName);
@@ -283,7 +280,7 @@ function EventCalendar() {
     }
   }, [location.state, eventsByName, selectedEvent, events]);
 
-  useEffect(() => { /* ... (unchanged event stats logic) ... */ 
+  useEffect(() => { 
     if (!selectedEvent || !events.length) {
       setHighlightedDates([]); setEventStats(null); setSelectedEventObject(null); setEventOccurrences([]);
       return;
@@ -314,7 +311,7 @@ function EventCalendar() {
     }
   }, [selectedEvent, events, eventsByName]);
 
-  const calendarMonths = useMemo(() => { /* ... (unchanged) ... */ 
+  const calendarMonths = useMemo(() => { 
     if (!highlightedDates.length) return { years: [], monthsByYear: {} };
     const firstDate = highlightedDates[0]; const today = new Date(); const months = []; 
     let currentMonth = startOfMonth(firstDate);
@@ -331,7 +328,7 @@ function EventCalendar() {
     return { years: sortedYears, monthsByYear: orderedYearMonths };
   }, [highlightedDates]);
 
-  const streamDays = useMemo(() => { /* ... (unchanged) ... */ 
+  const streamDays = useMemo(() => { 
     if (!eventStats || highlightedDates.length === 0) return [];
     const firstEventDate = eventStats.firstDate; const today = startOfDay(new Date());
     if (firstEventDate > today) return []; 
@@ -339,79 +336,61 @@ function EventCalendar() {
     return daysArray.sort((a, b) => b - a);
   }, [highlightedDates, eventStats]);
   
-  useEffect(() => { /* ... (unchanged popup listener) ... */ 
+  const streamEventColorToUse = useMemo(() => { 
+    if (eventStats?.colorId && calendarColors && calendarColors[eventStats.colorId]) {
+      return calendarColors[eventStats.colorId].background;
+    }
+    return defaultEventColor; 
+  }, [eventStats, calendarColors, defaultEventColor]);
+
+  useEffect(() => { 
     const handlePopupBlocked = (event) => {
-      setPopupBlocked(true);
-      setAuthError(event.detail.message || "El navegador bloqueó la ventana de autenticación. Por favor, permite ventanas emergentes para este sitio.");
+      setSnackbar({ open: true, message: event.detail.message || "El navegador bloqueó la ventana de autenticación. Por favor, permite ventanas emergentes para este sitio.", severity: "warning" });
     };
     window.addEventListener('auth-popup-blocked', handlePopupBlocked);
     return () => window.removeEventListener('auth-popup-blocked', handlePopupBlocked);
   }, []);
 
-  const handleSignIn = async () => { /* ... (unchanged) ... */ 
-    try {
-      setAuthLoading(true); setAuthError(null); setPopupBlocked(false);
-      const response = await signIn((message, isError) => setAuthError(isError ? `Error: ${message}` : `Status: ${message}`));
-      if (response?.userProfile) { setUser(response.userProfile); setCalendar(response.calendar); }
-    } catch (error) {
-      if (error?.error !== "popup_closed_by_user") {
-        setAuthError(error.message || "Error al iniciar sesión. Por favor, intenta de nuevo.");
-        if (error.type === 'popup_failed_to_open' || error.type === 'popup_closed') setPopupBlocked(true);
-      }
-    } finally { setAuthLoading(false); }
-  };
-
   const handleEventChange = (event) => setSelectedEvent(event.target.value);
-  const handleEditClick = () => { /* ... (unchanged, uses selectedEventObject) ... */ 
+  const handleEditClick = () => { 
     if (selectedEventObject) {
       setEventToEditFromStream(null); 
       setFormOpen(true);
     } else setSnackbar({ open: true, message: "No hay una ocurrencia de evento específica seleccionada para editar.", severity: "warning" });
   };
 
-  const handleUpdateEvent = async (formData) => { /* ... (unchanged, uses selectedEventObject or eventToEditFromStream logic will be in event prop of form) ... */ 
+  const handleUpdateEventFromCalendar = async (formData) => { 
     const eventToUpdate = eventToEditFromStream || selectedEventObject;
     if (!calendar?.id || !eventToUpdate?.id) {
       setSnackbar({ open: true, message: "Error: Falta información del calendario o evento", severity: "error" }); return;
     }
     try {
       setProcessing(true);
-      const eventObject = createEventObject({
-        id: eventToUpdate.id, name: formData.name || eventToUpdate.name, startDate: formData.startDate || eventToUpdate.startDate,
-        description: formData.description !== undefined ? formData.description : eventToUpdate.description,
-        colorId: formData.colorId || eventToUpdate.colorId, tags: formData.tags || eventToUpdate.tags,
-      });
-      const updatedGoogleEvent = await updateGoogleEvent(calendar.id, eventToUpdate.id, eventObject);
-      if (updatedGoogleEvent) {
-        const parsedUpdatedEvent = parseGoogleEvent(updatedGoogleEvent);
-        if (parsedUpdatedEvent) updateEventInState(parsedUpdatedEvent);
-        setFormOpen(false); setEventToEditFromStream(null);
-        if (formData.name && formData.name !== selectedEvent) setSelectedEvent(formData.name);
-        setSnackbar({ open: true, message: "Evento actualizado correctamente", severity: "success" });
-      } else throw new Error("Failed to update event");
+      await handleUpdateEvent(eventToUpdate.id, formData);
+      setFormOpen(false); setEventToEditFromStream(null);
+      if (formData.name && formData.name !== selectedEvent) setSelectedEvent(formData.name);
+      setSnackbar({ open: true, message: "Evento actualizado correctamente", severity: "success" });
     } catch (error) {
       setSnackbar({ open: true, message: `Error al actualizar el evento: ${error.message || "Error desconocido"}`, severity: "error" });
     } finally { setProcessing(false); }
   };
 
-  const handleDeleteEventFromCalendarForm = async (eventIdToDelete) => { /* ... (unchanged, uses eventIdToDelete) ... */ 
+  const handleDeleteEventFromCalendarForm = async (eventIdToDelete) => { 
     const eventBeingDeleted = eventToEditFromStream || selectedEventObject;
     if (!calendar?.id || !eventIdToDelete) {
       setSnackbar({ open: true, message: "Error: Falta ID de calendario o evento para eliminar.", severity: "error" });
       return;
     }
-    setProcessing(true);
     try {
-      await deleteEvent(calendar.id, eventIdToDelete);
-      deleteEventInState(eventIdToDelete);
+      await handleDeleteEvent(eventIdToDelete);
       setSnackbar({ open: true, message: "Evento eliminado correctamente.", severity: "success" });
       if (eventBeingDeleted?.id === eventIdToDelete) {
-        setSelectedEventObject(null); setEventToEditFromStream(null);
+        setSelectedEventObject(null); 
+        setEventToEditFromStream(null);
         const remainingOccurrences = (eventsByName[selectedEvent] || []).filter(e => e.id !== eventIdToDelete);
         if (remainingOccurrences.length === 0) setSelectedEvent("");
       }
     } catch (error) {
-      console.error("Error deleting event from calendar form:", error);
       setSnackbar({ open: true, message: `Error al eliminar evento: ${error.message}`, severity: "error" });
     } finally {
       setProcessing(false);
@@ -419,7 +398,7 @@ function EventCalendar() {
     }
   };
 
-  const handleStreamDayClick = useCallback((day) => { /* ... (unchanged) ... */ 
+  const handleStreamDayClick = useCallback((day) => { 
     const foundEvent = eventOccurrences.find(e => isSameDay(e.startDate, day));
     if (foundEvent) {
       setEventToEditFromStream(foundEvent); 
@@ -436,9 +415,8 @@ function EventCalendar() {
     }
   }, [eventOccurrences, selectedEvent, eventsByName]);
 
-
   const handleCloseSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }));
-  const formatTimeElapsed = (stats) => { /* ... (unchanged) ... */ 
+  const formatTimeElapsed = (stats) => { 
     if (!stats) return [];
     return [
       `${stats.daysSinceFirst} días`,
@@ -446,13 +424,13 @@ function EventCalendar() {
       `${String(Math.floor(stats.hoursSinceFirst)).padStart(2, '0')}:${String(Math.floor(stats.minutesSinceFirst % 60)).padStart(2, '0')}:${String(Math.floor(stats.secondsSinceFirst % 60)).padStart(2, '0')}`
     ];
   };
-  const formatOccurrenceDates = () => { /* ... (unchanged) ... */ 
+  const formatOccurrenceDates = () => { 
     if (!eventOccurrences || eventOccurrences.length === 0) return ["Sin ocurrencias"];
     return eventOccurrences.map((event, index) => `${index === 0 ? 'Primera' : `${index + 1}ª`}: ${format(event.startDate, 'dd/MM/yyyy')}`);
   };
   const handleViewModeChange = (event, newMode) => { if (newMode !== null) setCalendarViewMode(newMode); };
 
-  const handleOpenRecurrenceDialogFromButton = () => { /* ... (unchanged) ... */ 
+  const handleOpenRecurrenceDialogFromButton = () => { 
     const baseEventForRecurrence = eventToEditFromStream || selectedEventObject;
     if (!baseEventForRecurrence) {
       setSnackbar({ open: true, message: "Por favor, selecciona un evento primero.", severity: "info" });
@@ -462,7 +440,7 @@ function EventCalendar() {
     setRecurrenceDialogDate(new Date());
     setIsRecurrenceDialogOpen(true);
   };
-  const handleDayCellClick = useCallback((dateOfClickedCell) => { /* ... (unchanged, this is for traditional view) ... */ 
+  const handleDayCellClick = useCallback((dateOfClickedCell) => { 
     const baseEventForRecurrence = eventToEditFromStream || selectedEventObject; 
     if (!baseEventForRecurrence && (!selectedEvent || !eventsByName[selectedEvent] || eventsByName[selectedEvent].length === 0) ) {
       setSnackbar({ open: true, message: "Por favor, selecciona un evento para añadir una recurrencia.", severity: "info" });
@@ -472,11 +450,11 @@ function EventCalendar() {
     setRecurrenceDialogDate(dateOfClickedCell);
     setIsRecurrenceDialogOpen(true);
   }, [selectedEventObject, eventToEditFromStream, selectedEvent, eventsByName]);
-  const handleCloseRecurrenceDialog = () => { /* ... (unchanged) ... */ 
+  const handleCloseRecurrenceDialog = () => { 
     setIsRecurrenceDialogOpen(false);
     setEventForRecurrenceDialog(null);
   };
-  const handleSaveRecurrence = async (originalEvent, newDate) => { /* ... (unchanged) ... */ 
+  const handleSaveRecurrenceFromCalendar = async (originalEvent, newDate) => { 
     if (!calendar?.id) {
       setSnackbar({ open: true, message: "Error: ID de calendario no disponible.", severity: "error" });
       return;
@@ -487,20 +465,9 @@ function EventCalendar() {
     }
     setProcessing(true);
     try {
-      const recurrenceEventObject = createEventObject({
-        name: originalEvent.name, description: originalEvent.description || "",
-        colorId: originalEvent.colorId || null, tags: originalEvent.tags || [],
-        startDate: newDate,
-      });
-      const createdCalendarEvent = await createEvent(calendar.id, recurrenceEventObject);
-      if (!createdCalendarEvent) throw new Error("Fallo al crear la recurrencia en Google Calendar.");
-      const parsedEvent = parseGoogleEvent(createdCalendarEvent);
-      if (parsedEvent) {
-        addEvent(parsedEvent);
-        setSnackbar({ open: true, message: "Recurrencia añadida correctamente.", severity: "success" });
-      } else throw new Error("Fallo al parsear la recurrencia creada.");
+      await handleSaveRecurrence(originalEvent, newDate);
+      setSnackbar({ open: true, message: "Recurrencia añadida correctamente.", severity: "success" });
     } catch (error) {
-      console.error("Error creating recurring event:", error);
       setSnackbar({ open: true, message: `Error al añadir recurrencia: ${error.message}`, severity: "error" });
     } finally {
       setProcessing(false);
@@ -509,160 +476,154 @@ function EventCalendar() {
   };
 
   // Conditional Renders
-  if (loading || processing) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}><CircularProgress /></Box>;
+  if (appLoading || eventsLoading || processing) return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}><CircularProgress /></Box>;
   if (error) return <Box sx={{ p: 3, textAlign: 'center' }}><Typography color="error">{error}</Typography></Box>;
-  if (!user) { /* ... (unchanged no user block) ... */ 
+  if (!user) { 
     return (
       <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
         <Typography variant="h6" gutterBottom>Bienvenido a Chronicon</Typography>
         <Typography variant="body1" sx={{ textAlign: 'center', maxWidth: '600px', mb: 3 }}>Por favor inicia sesión con tu cuenta de Google para acceder a tu calendario Chronicon.</Typography>
-        <Button variant="contained" color="primary" onClick={handleSignIn} disabled={loading || authLoading}>{authLoading ? "Iniciando sesión..." : "Iniciar sesión con Google"}</Button>
+        <Button variant="contained" color="primary" onClick={handleSignIn} disabled={authLoading}>{authLoading ? "Iniciando sesión..." : "Iniciar sesión con Google"}</Button>
         {authError && <Alert severity={authError.startsWith("Error:") ? "error" : "info"} sx={{ mt: 2, maxWidth: '600px' }}>{authError.startsWith("Error:") ? authError.substring(7) : authError.startsWith("Status:") ? authError.substring(8) : authError}</Alert>}
         {popupBlocked && <Alert severity="warning" sx={{ mt: 2, maxWidth: '600px' }}>El navegador bloqueó la ventana emergente. Por favor, asegúrate de permitir ventanas emergentes para este sitio y vuelve a intentarlo.</Alert>}
       </Box>
     );
   }
   if (!calendar) return <Box sx={{ p: 3 }}><Typography>Por favor selecciona un calendario para ver los eventos.</Typography></Box>;
-  if (!events.length && !loading) return <Box sx={{ p: 3 }}><Typography>No hay eventos disponibles. Crea uno en la vista de Grid.</Typography></Box>;
+  if (!events.length && !eventsLoading) return <Box sx={{ p: 3 }}><Typography>No hay eventos disponibles. Crea uno en la vista de Grid.</Typography></Box>;
 
   const uniqueEventNames = Object.keys(eventsByName);
   const hardcodedDaySize = 24; 
-  const defaultEventColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3';
-  const streamEventColorToUse = useMemo(() => { /* ... (unchanged) ... */ 
-    if (eventStats?.colorId && calendarColors && calendarColors[eventStats.colorId]) {
-      return calendarColors[eventStats.colorId].background;
-    }
-    return defaultEventColor; 
-  }, [eventStats, calendarColors, defaultEventColor]);
-
   const eventForForm = eventToEditFromStream || selectedEventObject;
 
 
   return (
-    <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
-      <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-              <Select value={selectedEvent} onChange={handleEventChange} size="small" sx={{ minWidth: 200, maxWidth: 'fit-content', '& .MuiSelect-select': { display: 'flex', alignItems: 'center' }}} startAdornment={<CalendarMonth sx={{ mr: 1, opacity: 0.7 }} />}>
-                {uniqueEventNames.map((name) => (<MenuItem key={name} value={name}>{name}</MenuItem>))}
-              </Select>
-              {selectedEventObject && ( 
-                <>
-                  <Tooltip title="Editar primera ocurrencia"><IconButton color="primary" onClick={handleEditClick} size="small"><Edit /></IconButton></Tooltip>
-                  <Tooltip title="Añadir Ocurrencia">
-                    <IconButton 
-                      color="primary" // Or "default" or "inherit" based on desired styling
-                      onClick={handleOpenRecurrenceDialogFromButton}
-                      disabled={!selectedEventObject || processing}
-                      size="small" // Match the edit button size
-                    >
-                      <RepeatIcon />
-                    </IconButton>
-                  </Tooltip>
-                </>
-              )}
-            </Box>
-          </Grid>
-          <Grid item xs={12}>
-            {eventStats ? ( /* ... (StatChips unchanged) ... */ 
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                <StatChip title="Ocurrencias:" values={formatOccurrenceDates()} icon={<Repeat />} />
-                <StatChip title="Tiempo desde la primera ocurrencia:" values={formatTimeElapsed(eventStats)} icon={<AccessTime />} />
-                {eventStats.totalOccurrences > 1 && <StatChip title="Última vez:" values={[`Hace ${eventStats.daysSinceLast} días`, format(eventStats.lastDate, 'dd/MM/yyyy')]} icon={<Update />} />}
-                {eventStats.totalOccurrences > 1 && eventStats.averageGapDays && <StatChip title="Promedio entre ocurrencias:" values={[`${eventStats.averageGapDays} días`]} icon={<Repeat />} />}
-                {eventStats.tags && eventStats.tags.length > 0 && <StatChip title="Etiquetas:" values={[eventStats.tags.join(', ')]} icon={<LocalOffer />} />}
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+      <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+        <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                <Select value={selectedEvent} onChange={handleEventChange} size="small" sx={{ minWidth: 200, maxWidth: 'fit-content', '& .MuiSelect-select': { display: 'flex', alignItems: 'center' }}} startAdornment={<CalendarMonth sx={{ mr: 1, opacity: 0.7 }} />}>
+                  {uniqueEventNames.map((name) => (<MenuItem key={name} value={name}>{name}</MenuItem>))}
+                </Select>
+                {selectedEventObject && ( 
+                  <>
+                    <Tooltip title="Editar primera ocurrencia"><IconButton color="primary" onClick={handleEditClick} size="small"><Edit /></IconButton></Tooltip>
+                    <Tooltip title="Añadir Ocurrencia">
+                      <IconButton 
+                        color="primary"
+                        onClick={handleOpenRecurrenceDialogFromButton}
+                        disabled={!selectedEventObject || processing}
+                        size="small"
+                      >
+                        <RepeatIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </>
+                )}
               </Box>
-            ) : <Typography variant="body2" color="text.secondary">Selecciona un evento para ver sus estadísticas.</Typography>}
+            </Grid>
+            <Grid item xs={12}>
+              {eventStats ? ( 
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  <StatChip title="Ocurrencias:" values={formatOccurrenceDates()} icon={<Repeat />} />
+                  <StatChip title="Tiempo desde la primera ocurrencia:" values={formatTimeElapsed(eventStats)} icon={<AccessTime />} />
+                  {eventStats.totalOccurrences > 1 && <StatChip title="Última vez:" values={[`Hace ${eventStats.daysSinceLast} días`, format(eventStats.lastDate, 'dd/MM/yyyy')]} icon={<Update />} />}
+                  {eventStats.totalOccurrences > 1 && eventStats.averageGapDays && <StatChip title="Promedio entre ocurrencias:" values={[`${eventStats.averageGapDays} días`]} icon={<Repeat />} />}
+                  {eventStats.tags && eventStats.tags.length > 0 && <StatChip title="Etiquetas:" values={[eventStats.tags.join(', ')]} icon={<LocalOffer />} />}
+                </Box>
+              ) : <Typography variant="body2" color="text.secondary">Selecciona un evento para ver sus estadísticas.</Typography>}
+            </Grid>
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+              <ToggleButtonGroup value={calendarViewMode} exclusive onChange={handleViewModeChange} aria-label="calendar view mode" size="small">
+                <ToggleButton value="traditional" aria-label="traditional view"><ViewModule sx={{ mr: 0.5 }} fontSize="small" />Tradicional</ToggleButton>
+                <ToggleButton value="stream" aria-label="stream view"><ViewStream sx={{ mr: 0.5 }} fontSize="small" />Stream</ToggleButton>
+              </ToggleButtonGroup>
+              <Tooltip title="Mostrar/Ocultar números de todos los días">
+                <IconButton 
+                  onClick={() => setShowAllDayNumbers(!showAllDayNumbers)} 
+                  color="primary"
+                  sx={{ ml: { xs: 0, sm: 2 }, mt: { xs: 1, sm: 0 } }}
+                >
+                  {showAllDayNumbers ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </Tooltip>
+            </Grid>
           </Grid>
-          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-            <ToggleButtonGroup value={calendarViewMode} exclusive onChange={handleViewModeChange} aria-label="calendar view mode" size="small">
-              <ToggleButton value="traditional" aria-label="traditional view"><ViewModule sx={{ mr: 0.5 }} fontSize="small" />Tradicional</ToggleButton>
-              <ToggleButton value="stream" aria-label="stream view"><ViewStream sx={{ mr: 0.5 }} fontSize="small" />Stream</ToggleButton>
-            </ToggleButtonGroup>
-            <Tooltip title="Mostrar/Ocultar números de todos los días">
-              <IconButton 
-                onClick={() => setShowAllDayNumbers(!showAllDayNumbers)} 
-                color="primary" // Or "inherit" or "default" based on desired styling
-                sx={{ ml: { xs: 0, sm: 2 }, mt: { xs: 1, sm: 0 } }} // Keep similar margin for spacing
-              >
-                {showAllDayNumbers ? <VisibilityOff /> : <Visibility />}
-              </IconButton>
-            </Tooltip>
-          </Grid>
-        </Grid>
-      </Paper>
-      
-      <Box sx={{ position: 'relative' }}>
-        <Slide direction="down" in={calendarViewMode === "traditional"} timeout={500} mountOnEnter unmountOnExit>
-          <Paper elevation={3} sx={{ p: 2, display: calendarViewMode === "traditional" ? 'block' : 'none' }}>
-            {eventStats && eventOccurrences.length > 0 ? (
-              calendarMonths.years.map(year => (
-                <Box key={year}>
-                  <YearSeparator year={year} />
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
-                    {calendarMonths.monthsByYear[year].map(month => (
-                      <MonthCalendar 
-                        key={month.toString()} month={month} highlightedDates={highlightedDates}
-                        eventColor={eventStats.colorId}
-                        size={hardcodedDaySize} calendarColors={calendarColors}
-                        onDayClick={handleDayCellClick}
+        </Paper>
+        
+        <Box sx={{ position: 'relative' }}>
+          <Slide direction="down" in={calendarViewMode === "traditional"} timeout={500} mountOnEnter unmountOnExit>
+            <Paper elevation={3} sx={{ p: 2, display: calendarViewMode === "traditional" ? 'block' : 'none' }}>
+              {eventStats && eventOccurrences.length > 0 ? (
+                calendarMonths.years.map(year => (
+                  <Box key={year}>
+                    <YearSeparator year={year} />
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+                      {calendarMonths.monthsByYear[year].map(month => (
+                        <MonthCalendar 
+                          key={month.toString()} month={month} highlightedDates={highlightedDates}
+                          eventColor={eventStats.colorId}
+                          size={hardcodedDaySize} calendarColors={calendarColors}
+                          onDayClick={handleDayCellClick}
+                          showAllDayNumbers={showAllDayNumbers}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                ))
+              ) : ( <Typography sx={{ textAlign: 'center', p:2 }}>No hay datos para mostrar en la vista tradicional.</Typography> )}
+            </Paper>
+          </Slide>
+
+          <Slide direction="up" in={calendarViewMode === "stream"} timeout={500} mountOnEnter unmountOnExit>
+            <Paper elevation={3} sx={{ p: 2, display: calendarViewMode === "stream" ? 'block' : 'none' }}>
+              {eventStats && streamDays.length > 0 ? (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-start', p: 1 }}>
+                  {streamDays.map(day => {
+                    const eventIndex = highlightedDates.findIndex(d => isSameDay(d, day));
+                    return (
+                      <CalendarDay 
+                        key={day.toISOString()} day={day} eventIndex={eventIndex} inRange={true} isOutside={false}
+                        eventColorToUse={streamEventColorToUse} theme={theme} daySize={hardcodedDaySize}
+                        onDayClick={handleStreamDayClick}
                         showAllDayNumbers={showAllDayNumbers}
                       />
-                    ))}
-                  </Box>
+                    );
+                  })}
                 </Box>
-              ))
-            ) : ( <Typography sx={{ textAlign: 'center', p:2 }}>No hay datos para mostrar en la vista tradicional.</Typography> )}
-          </Paper>
-        </Slide>
-
-        <Slide direction="up" in={calendarViewMode === "stream"} timeout={500} mountOnEnter unmountOnExit>
-          <Paper elevation={3} sx={{ p: 2, display: calendarViewMode === "stream" ? 'block' : 'none' }}>
-            {eventStats && streamDays.length > 0 ? (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-start', p: 1 }}>
-                {streamDays.map(day => {
-                  const eventIndex = highlightedDates.findIndex(d => isSameDay(d, day));
-                  return (
-                    <CalendarDay 
-                      key={day.toISOString()} day={day} eventIndex={eventIndex} inRange={true} isOutside={false}
-                      eventColorToUse={streamEventColorToUse} theme={theme} daySize={hardcodedDaySize}
-                      onDayClick={handleStreamDayClick}
-                      showAllDayNumbers={showAllDayNumbers}
-                    />
-                  );
-                })}
-              </Box>
-            ) : ( <Typography sx={{ textAlign: 'center', p:2 }}>No hay datos para mostrar en la vista de stream.</Typography> )}
-          </Paper>
-        </Slide>
-      </Box>
-      
-      {(formOpen && eventForForm) && (
-        <EventForm 
-          open={formOpen} 
-          onClose={() => { 
-            setFormOpen(false); 
-            setEventToEditFromStream(null); 
-          }} 
-          onSubmit={handleUpdateEvent} 
-          event={eventForForm} 
-          onDelete={handleDeleteEventFromCalendarForm}
+              ) : ( <Typography sx={{ textAlign: 'center', p:2 }}>No hay datos para mostrar en la vista de stream.</Typography> )}
+            </Paper>
+          </Slide>
+        </Box>
+        
+        {(formOpen && eventForForm) && (
+          <EventForm 
+            open={formOpen} 
+            onClose={() => { 
+              setFormOpen(false); 
+              setEventToEditFromStream(null); 
+            }} 
+            onSubmit={handleUpdateEventFromCalendar} 
+            event={eventForForm} 
+            onDelete={handleDeleteEventFromCalendarForm}
+          />
+        )}
+        
+        <AddRecurrenceDialog
+          open={isRecurrenceDialogOpen}
+          onClose={handleCloseRecurrenceDialog}
+          onSubmit={handleSaveRecurrenceFromCalendar}
+          eventToRecur={eventForRecurrenceDialog}
+          initialDate={recurrenceDialogDate}
         />
-      )}
-      
-      <AddRecurrenceDialog
-        open={isRecurrenceDialogOpen}
-        onClose={handleCloseRecurrenceDialog}
-        onSubmit={handleSaveRecurrence}
-        eventToRecur={eventForRecurrenceDialog}
-        initialDate={recurrenceDialogDate}
-      />
 
-      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled">{snackbar.message}</Alert>
-      </Snackbar>
-    </Box>
+        <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+          <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant="filled">{snackbar.message}</Alert>
+        </Snackbar>
+      </Box>
+    </LocalizationProvider>
   );
 }
 

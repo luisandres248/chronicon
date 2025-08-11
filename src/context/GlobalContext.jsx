@@ -1,238 +1,271 @@
-import React, { createContext, useState, useEffect } from "react";
-import {
-  checkSignInStatus,
-  initGoogleAPI,
-  fetchCalendarEvents,
-  getCalendarColors,
-} from "../services/googleService";
-import { parseGoogleEvent } from "../services/eventService";
+import React, { createContext, useState, useEffect, useCallback } from "react";
+import * as googleService from "../services/googleService";
+import * as eventService from "../services/eventService";
+import logger from "../utils/logger.js";
 
 export const GlobalContext = createContext();
 
 const USER_CONFIG_STORAGE_KEY = "chronicon_user_config";
 
 const defaultConfig = {
-  theme: "softDark", // Changed from darkMode: false
+  theme: "softDark",
 };
 
 export const GlobalProvider = ({ children }) => {
+  // Configuration state
   const [config, setConfig] = useState(() => {
     try {
       const storedConfig = localStorage.getItem(USER_CONFIG_STORAGE_KEY);
       if (storedConfig) {
         const parsedConfig = JSON.parse(storedConfig);
-        // Ensure backward compatibility or migration if 'darkMode' exists
         if (parsedConfig.hasOwnProperty('darkMode')) {
           parsedConfig.theme = parsedConfig.darkMode ? 'dark' : 'light';
-          delete parsedConfig.darkMode; // Remove old key
+          delete parsedConfig.darkMode;
         }
-        delete parsedConfig.firstDayOfWeek; // Explicitly remove it
+        delete parsedConfig.firstDayOfWeek;
         return { ...defaultConfig, ...parsedConfig };
       }
     } catch (error) {
-      console.error("Error loading user config from localStorage:", error);
+      logger.error("Error loading user config:", error);
     }
     return defaultConfig;
   });
+
+  // Core application state
   const [user, setUser] = useState(null);
   const [calendar, setCalendar] = useState(null);
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [calendarColors, setCalendarColors] = useState(null);
-  const [loadingColors, setLoadingColors] = useState(false);
 
+  // Loading and error states
+  const [appLoading, setAppLoading] = useState(true); // Initial app load
+  const [authLoading, setAuthLoading] = useState(false); // Signing in/out
+  const [eventsLoading, setEventsLoading] = useState(false); // Fetching events
+  const [processing, setProcessing] = useState(false); // CUD operations
+  const [error, setError] = useState(null);
+  const [authError, setAuthError] = useState(null);
+
+  // --- CORE APP INITIALIZATION ---
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        setLoading(true);
-        await initGoogleAPI();
-        const { profile, calendar } = checkSignInStatus();
-
+        setAppLoading(true);
+        await googleService.initGoogleAPI();
+        const { profile, calendar } = googleService.checkSignInStatus();
         if (profile && calendar) {
-          console.log("Restoring session:", { profile, calendar });
+          logger.info("Restoring session:", { profile, calendar });
           setUser(profile);
           setCalendar(calendar);
         } else {
-          console.log("No stored session found");
+          logger.info("No stored session found");
         }
-      } catch (error) {
-        console.error("Error initializing app:", error);
-        setError("Failed to initialize Google API");
+      } catch (err) {
+        logger.error("Error initializing Google API:", err);
+        setError("Failed to initialize Google API. Please refresh the page.");
       } finally {
-        setLoading(false);
+        setAppLoading(false);
       }
     };
-
     initializeApp();
   }, []);
 
-  // Cargar colores disponibles cuando el usuario está autenticado
+  // --- DATA FETCHING EFFECTS ---
   useEffect(() => {
-    const loadColors = async () => {
-      if (!user) return;
-      
-      try {
-        setLoadingColors(true);
-        const colors = await getCalendarColors();
-        if (colors && colors.event) {
-          console.log("Loaded calendar colors:", colors.event);
-          setCalendarColors(colors.event);
-        }
-      } catch (error) {
-        console.error("Error loading calendar colors:", error);
-      } finally {
-        setLoadingColors(false);
-      }
-    };
-
-    loadColors();
-  }, [user]);
-
-  useEffect(() => {
-    const loadEvents = async () => {
-      if (calendar?.id && user) {
+    const loadData = async () => {
+      if (user && calendar) {
+        setEventsLoading(true);
+        setError(null);
         try {
-          setLoading(true);
-          setError(null);
-          console.log("Loading events for calendar:", calendar.id);
-          const calendarEvents = await fetchCalendarEvents(calendar.id);
-          console.log("Raw calendar events:", calendarEvents);
-          const parsedEvents = calendarEvents
-            .map(parseGoogleEvent)
-            .filter(Boolean);
-          console.log("Parsed events:", parsedEvents);
+          const [colors, calendarEvents] = await Promise.all([
+            googleService.getCalendarColors(),
+            googleService.fetchCalendarEvents(calendar.id),
+          ]);
+          if (colors?.event) setCalendarColors(colors.event);
+          const parsedEvents = calendarEvents.map(eventService.parseGoogleEvent).filter(Boolean);
           setEvents(parsedEvents);
-        } catch (error) {
-          console.error("Error loading events:", error);
-          
-          // Determinar el tipo de error para mostrar un mensaje más amigable
-          let errorMessage = "Failed to load calendar events";
-          
-          // Errores de autenticación
-          if (error.status === 401 || (error.result && error.result.error && error.result.error.code === 401)) {
-            errorMessage = "Your session has expired. Please sign out and sign in again.";
-          } 
-          // Errores de red
-          else if (error.message && error.message.includes("network")) {
-            errorMessage = "Network error. Please check your internet connection.";
-          }
-          // Errores de acceso
-          else if (error.status === 403 || (error.result && error.result.error && error.result.error.code === 403)) {
-            errorMessage = "You don't have permission to access this calendar.";
-          }
-          // Errores de límite de cuota
-          else if (error.status === 429 || (error.result && error.result.error && error.result.error.code === 429)) {
-            errorMessage = "Too many requests. Please try again later.";
-          }
-          
-          setError(errorMessage);
+          logger.info("Loaded calendar colors:", colors?.event);
+          logger.info("Raw calendar events:", calendarEvents);
+          logger.info("Parsed events:", parsedEvents);
+        } catch (err) {
+          logger.error("Error loading events:", err);
+          setError("Failed to load calendar data. Your session might have expired.");
           setEvents([]);
         } finally {
-          setLoading(false);
+          setEventsLoading(false);
         }
       } else {
-        console.log("Not loading events - missing calendar or user", {
+        logger.info("Not loading events - missing calendar or user", {
           calendarId: calendar?.id,
           hasUser: !!user,
         });
         setEvents([]);
       }
     };
+    loadData();
+  }, [user, calendar]);
 
-    loadEvents();
-  }, [calendar, user]);
+  // --- BUSINESS LOGIC & API CALLS ---
 
+  const handleSignIn = useCallback(async () => {
+    setAuthLoading(true);
+    setAuthError(null);
+    try {
+      const { userProfile, calendar } = await googleService.signIn();
+      setUser(userProfile);
+      setCalendar(calendar);
+    } catch (err) {
+      if (err?.error !== "popup_closed_by_user") {
+        logger.error("Error signing in:", err);
+        setAuthError(err.message || "An unknown error occurred during sign-in.");
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
+
+  const handleSignOut = useCallback(async () => {
+    setAuthLoading(true);
+    await googleService.signOut();
+    setUser(null);
+    setCalendar(null);
+    setEvents([]);
+    setAuthLoading(false);
+  }, []);
+
+  const reloadEvents = useCallback(async () => {
+    if (!calendar?.id) return;
+    setEventsLoading(true);
+    try {
+      const calendarEvents = await googleService.fetchCalendarEvents(calendar.id);
+      const parsedEvents = calendarEvents.map(eventService.parseGoogleEvent).filter(Boolean);
+      setEvents(parsedEvents);
+      logger.info("Events reloaded successfully.");
+    } catch (err) {
+      logger.error("Failed to reload events.", err);
+      setError("Failed to reload events.");
+    } finally {
+      setEventsLoading(false);
+    }
+  }, [calendar]);
+
+  const handleCreateEvent = useCallback(async (formData) => {
+    if (!calendar?.id) throw new Error("No calendar selected");
+    setProcessing(true);
+    try {
+      const eventObject = eventService.createEventObject(formData);
+      const newEvent = await googleService.createEvent(calendar.id, eventObject);
+      const parsedEvent = eventService.parseGoogleEvent(newEvent);
+      setEvents(prev => [...prev, parsedEvent]);
+      logger.info("Event created successfully:", parsedEvent);
+    } catch (err) {
+      logger.error("Error creating event:", err);
+      setError("Failed to create event.");
+    } finally {
+      setProcessing(false);
+    }
+  }, [calendar]);
+
+  const handleUpdateEvent = useCallback(async (eventId, formData) => {
+    if (!calendar?.id || !eventId) throw new Error("Missing calendar or event ID");
+
+    const originalEvents = events;
+    const updatedEventObject = eventService.createEventObject({ ...formData, id: eventId });
+    const parsedEvent = eventService.parseGoogleEvent(updatedEventObject); // Parse local object to keep UI consistent
+
+    // Optimistic update
+    setEvents(prev => prev.map(e => e.id === eventId ? parsedEvent : e));
+    logger.info("Optimistically updated event:", parsedEvent);
+
+    try {
+      await googleService.updateEvent(calendar.id, eventId, updatedEventObject);
+      logger.info("Event update confirmed by API.");
+    } catch (error) {
+      // Rollback on error
+      setEvents(originalEvents);
+      setError("Failed to update event. Please try again."); // Set error for UI feedback
+      logger.error("Rollback due to update error:", error);
+    }
+  }, [calendar, events]);
+
+  const handleDeleteEvent = useCallback(async (eventId) => {
+    if (!calendar?.id || !eventId) throw new Error("Missing calendar or event ID");
+
+    const originalEvents = events;
+
+    // Optimistic update
+    setEvents(prev => prev.filter(e => e.id !== eventId));
+    logger.info("Optimistically deleted event with ID:", eventId);
+
+    try {
+      await googleService.deleteEvent(calendar.id, eventId);
+      logger.info("Event deletion confirmed by API.");
+    } catch (error) {
+      // Rollback on error
+      setEvents(originalEvents);
+      setError("Failed to delete event. Please try again."); // Set error for UI feedback
+      logger.error("Rollback due to delete error:", error);
+    }
+  }, [calendar, events]);
+  
+  const handleSaveRecurrence = useCallback(async (originalEvent, newDate) => {
+    if (!calendar?.id) throw new Error("No calendar selected");
+    setProcessing(true);
+    try {
+      const recurrenceEventObject = eventService.createEventObject({
+        name: originalEvent.name, description: originalEvent.description || "",
+        colorId: originalEvent.colorId || null, tags: originalEvent.tags || [],
+        startDate: newDate,
+      });
+      const createdCalendarEvent = await googleService.createEvent(calendar.id, recurrenceEventObject);
+      const parsedEvent = eventService.parseGoogleEvent(createdCalendarEvent);
+      setEvents(prev => [...prev, parsedEvent]);
+      logger.info("Recurrence created successfully:", parsedEvent);
+    } catch (err) {
+      logger.error("Error creating recurrence:", err);
+      setError("Failed to create recurrence.");
+    }
+    finally {
+      setProcessing(false);
+    }
+  }, [calendar]);
+
+  // --- CONFIGURATION MANAGEMENT ---
   const updateConfig = (newConfig) => {
     const updatedConfig = { ...config, ...newConfig };
     setConfig(updatedConfig);
     try {
       localStorage.setItem(USER_CONFIG_STORAGE_KEY, JSON.stringify(updatedConfig));
     } catch (error) {
-      console.error("Error saving user config to localStorage:", error);
+      logger.error("Error saving user config to localStorage:", error);
     }
   };
 
-  const addEvent = (event) => {
-    const parsedEvent = parseGoogleEvent(event);
-    if (parsedEvent) {
-      console.log("Adding event to state:", parsedEvent);
-      setEvents((prevEvents) => {
-        // Verificar si el evento ya existe para evitar duplicados
-        const exists = prevEvents.some(e => e.id === parsedEvent.id);
-        if (exists) {
-          console.log("Event already exists, updating instead:", parsedEvent.id);
-          return prevEvents.map(e => e.id === parsedEvent.id ? parsedEvent : e);
-        }
-        return [...prevEvents, parsedEvent];
-      });
-    } else {
-      console.warn("Skipping invalid event:", event);
-    }
-  };
-
-  const updateEvent = (updatedEvent) => {
-    const parsedEvent = parseGoogleEvent(updatedEvent);
-    if (parsedEvent) {
-      console.log("Updating event in state:", parsedEvent);
-      setEvents((prevEvents) => {
-        // Verificar si el evento existe
-        const exists = prevEvents.some(e => e.id === parsedEvent.id);
-        if (!exists) {
-          console.log("Event doesn't exist, adding instead:", parsedEvent.id);
-          return [...prevEvents, parsedEvent];
-        }
-        return prevEvents.map((event) =>
-          event.id === parsedEvent.id ? parsedEvent : event
-        );
-      });
-    } else {
-      console.warn("Skipping invalid event update:", updatedEvent);
-    }
-  };
-
-  const deleteEvent = (eventId) => {
-    console.log("Deleting event from state:", eventId);
-    setEvents((prevEvents) =>
-      prevEvents.filter((event) => event.id !== eventId)
-    );
-  };
-
-  // Función para reemplazar todos los eventos
-  const setAllEvents = (newEvents) => {
-    if (!newEvents || !Array.isArray(newEvents)) {
-      console.warn("Invalid events array:", newEvents);
-      return;
-    }
-    
-    console.log(`Setting all events (${newEvents.length})`);
-    const parsedEvents = newEvents
-      .map(parseGoogleEvent)
-      .filter(Boolean);
-    
-    setEvents(parsedEvents);
+  const value = {
+    // State
+    config,
+    user,
+    calendar,
+    events,
+    calendarColors,
+    appLoading,
+    authLoading,
+    eventsLoading,
+    processing,
+    error,
+    authError,
+    // Methods
+    updateConfig,
+    handleSignIn,
+    handleSignOut,
+    reloadEvents,
+    handleCreateEvent,
+    handleUpdateEvent,
+    handleDeleteEvent,
+    handleSaveRecurrence,
   };
 
   return (
-    <GlobalContext.Provider
-      value={{
-        config,
-        updateConfig,
-        user,
-        setUser,
-        calendar,
-        setCalendar,
-        events,
-        loading,
-        error,
-        addEvent,
-        updateEvent,
-        deleteEvent,
-        setAllEvents,
-        calendarColors,
-        loadingColors,
-      }}
-    >
+    <GlobalContext.Provider value={value}>
       {children}
     </GlobalContext.Provider>
   );

@@ -16,11 +16,11 @@ import {
   MenuItem,
   CircularProgress,
 } from "@mui/material";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker"; // Changed from DateTimePicker
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { GlobalContext } from "../context/GlobalContext";
 import logger from "../utils/logger.js";
 
-const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => { // Added onDelete prop
+const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
   const { calendarColors, loadingColors } = useContext(GlobalContext);
   const [formData, setFormData] = useState({
     name: "",
@@ -35,7 +35,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => { // 
 
   useEffect(() => {
     if (event) {
-      logger.log("Initializing form with event:", event);
+      logger.debug("Initializing form with event:", event);
       setFormData({
         name: event.name || "",
         startDate: event.startDate || new Date(),
@@ -93,7 +93,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => { // 
       tags: formData.tags.map(tag => tag.trim()).filter(tag => tag.length > 0), 
     };
     
-    logger.log("Submitting form data:", cleanedFormData);
+    logger.info("Submitting form data:", cleanedFormData);
     onSubmit(cleanedFormData);
   };
 
@@ -116,7 +116,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => { // 
   };
 
   const handleColorChange = (colorId) => {
-    logger.log("Color ID changed:", colorId);
+    logger.debug("Color ID changed:", colorId);
     setFormData({ ...formData, colorId });
   };
 
@@ -148,7 +148,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => { // 
               disabled={submitting}
             />
 
-            <DatePicker // Changed from DateTimePicker
+            <DatePicker
               label="Start Date"
               value={formData.startDate}
               onChange={(newValue) =>
@@ -189,18 +189,16 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => { // 
                 </MenuItem>
                 {calendarColors && Object.entries(calendarColors).map(([id, colorData]) => (
                   <MenuItem key={id} value={id}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Box 
-                        sx={{ 
-                          width: 20, 
-                          height: 20, 
-                          backgroundColor: colorData.background,
-                          border: `1px solid ${colorData.foreground}`,
-                          borderRadius: '4px'
-                        }}
-                      />
-                      <span>Color {id}</span>
-                    </Box>
+                    <Box 
+                      sx={{ 
+                        width: 20, 
+                        height: 20, 
+                        backgroundColor: colorData.background,
+                        border: `1px solid ${colorData.foreground}`,
+                        borderRadius: '4px'
+                      }}
+                    />
+                    <span>Color {id}</span>
                   </MenuItem>
                 ))}
               </Select>
@@ -258,7 +256,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => { // 
                 onClick={handleDelete} 
                 color="error" 
                 disabled={submitting}
-                variant="outlined" // Optional: make it less prominent than primary actions
+                variant="outlined"
               >
                 Eliminar
               </Button>
