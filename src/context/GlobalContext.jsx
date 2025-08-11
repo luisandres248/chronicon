@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from "react";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
+import { CssBaseline } from "@mui/material";
 import * as googleService from "../services/googleService";
 import * as eventService from "../services/eventService";
 import logger from "../utils/logger.js";
@@ -68,14 +69,14 @@ const chroniconTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#673ab7', // Deep Purple
+      main: '#B39DDB', // Soft Pastel Purple (Deep Purple 200)
     },
     secondary: {
-      main: '#ffc107', // Amber
+      main: '#FFCC80', // Light Orange (Orange 200)
     },
     background: {
-      default: '#212121',
-      paper: '#303030',
+      default: '#263238', // Grayish-blue (Blue Grey 900)
+      paper: '#37474F', // Slightly lighter grayish-blue (Blue Grey 800)
     },
     text: {
       primary: '#e0e0e0',
@@ -94,13 +95,13 @@ const oceanBreezeTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#00bcd4', // Cyan
+      main: '#4FC3F7', // Light Blue 300
     },
     secondary: {
-      main: '#4dd0e1', // Light Cyan
+      main: '#80CBC4', // Teal 200
     },
     background: {
-      default: '#e0f7fa',
+      default: '#E0F7FA', // Light Cyan 50
       paper: '#ffffff',
     },
     text: {
@@ -120,13 +121,13 @@ const sunsetGlowTheme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#ff9800', // Orange
+      main: '#FFB74D', // Orange 300
     },
     secondary: {
-      main: '#ffb74d', // Light Orange
+      main: '#FFAB91', // Deep Orange 200
     },
     background: {
-      default: '#fff3e0',
+      default: '#FFF3E0', // Orange 50
       paper: '#ffffff',
     },
     text: {
@@ -415,6 +416,7 @@ export const GlobalProvider = ({ children }) => {
   return (
     <GlobalContext.Provider value={value}>
       <ThemeProvider theme={selectedTheme}>
+        <CssBaseline />
         {children}
       </ThemeProvider>
     </GlobalContext.Provider>

@@ -70,7 +70,7 @@ const Sidebar = () => {
         }}>
           {open && (
             <Box sx={{ p: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', flexGrow: 1, overflow: 'hidden' }}>
-              <Typography variant="h6" component="div" sx={{ fontFamily: 'serif', textTransform: 'uppercase', color: config?.theme === 'light' ? '#6A5F7A' : '#FFFFFF', fontWeight: 'bold', fontSize: '1.4rem', whiteSpace: 'nowrap', cursor: 'default' }}>
+              <Typography variant="h6" component="div" sx={{ fontFamily: 'serif', textTransform: 'uppercase', color: theme.palette.text.primary, fontWeight: 'bold', fontSize: '1.4rem', whiteSpace: 'nowrap', cursor: 'default' }}>
                 CHRONICON
               </Typography>
             </Box>
