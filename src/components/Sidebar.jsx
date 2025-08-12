@@ -23,11 +23,14 @@ import {
   ExpandMore,
   ExpandLess,
 } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
+import SmallLogo from "./SmallLogo";
 
-const drawerWidth = 240;
+const drawerWidth = 280;
 
 const Sidebar = () => {
+  const { t } = useTranslation();
   const {
     user,
     config,
@@ -64,15 +67,16 @@ const Sidebar = () => {
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: open ? 'space-between' : 'center',
-          p: 1, 
-          height: 56,
-          maxHeight: 56,
+          px: 2, 
+          py: 1, 
+          height: 100, // Even more increased height
+          maxHeight: 100, // Even more increased maxHeight
         }}>
           {open && (
-            <Box sx={{ p: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', flexGrow: 1, overflow: 'hidden' }}>
-              <Typography variant="h6" component="div" sx={{ fontFamily: 'serif', textTransform: 'uppercase', color: theme.palette.text.primary, fontWeight: 'bold', fontSize: '1.4rem', whiteSpace: 'nowrap', cursor: 'default' }}>
-                CHRONICON
-              </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexGrow: 1, overflow: 'visible' }}>
+              <Box sx={{ width: 80, height: 80 }}> {/* Even more increased size for SmallLogo */}
+                <SmallLogo />
+              </Box>
             </Box>
           )}
           <IconButton onClick={() => setOpen(!open)} sx={{ color: theme.palette.text.primary }}>
@@ -110,7 +114,7 @@ const Sidebar = () => {
                     primaryTypographyProps={{ variant: 'caption', sx: { color: theme.palette.text.secondary, textAlign: 'center', display: 'block', mb: 1, wordBreak: 'break-all' }}}
                   />
                   <Button fullWidth variant="outlined" color="secondary" size="small" onClick={handleSignOut} disabled={authLoading} sx={{ textTransform: 'none', mb: 1, borderColor: theme.palette.error.main, color: theme.palette.error.main, '&:hover': { backgroundColor: theme.palette.mode === 'dark' ? 'rgba(244, 67, 54, 0.1)' : 'rgba(211, 47, 47, 0.08)', borderColor: theme.palette.error.dark, } }}>
-                    {authLoading ? "Signing Out..." : "Sign Out"}
+                    {authLoading ? t('signingOut') : t('signOut')}
                   </Button>
                 </List>
               </Collapse>
@@ -131,31 +135,31 @@ const Sidebar = () => {
             <ListItemIcon sx={{ color: isActive('/') ? theme.palette.primary.main : 'inherit', minWidth: 'auto', justifyContent: 'center', mr: open ? 1 : 0 }}>
               <GridView />
             </ListItemIcon>
-            {open && <ListItemText primary="Grid" />}
+            {open && <ListItemText primary={t('gridLink')} />}
           </ListItem>
           <ListItem component={Link} to="/calendar" disabled={!user} sx={{ color: isActive('/calendar') ? theme.palette.primary.main : theme.palette.text.primary, backgroundColor: isActive('/calendar') ? (config?.darkMode ? 'rgba(144, 202, 249, 0.08)' : 'rgba(33, 150, 243, 0.08)') : 'transparent', borderRadius: '8px', mx: open ? 1 : 'auto', my: 0.5, width: open ? 'auto' : 'fit-content', justifyContent: open ? 'flex-start' : 'center', '&:hover': { backgroundColor: config?.darkMode ? 'rgba(144, 202, 249, 0.12)' : 'rgba(33, 150, 243, 0.12)' } }}>
             <ListItemIcon sx={{ color: isActive('/calendar') ? theme.palette.primary.main : 'inherit', minWidth: 'auto', justifyContent: 'center', mr: open ? 1 : 0 }}>
               <CalendarMonth />
             </ListItemIcon>
-            {open && <ListItemText primary="Calendar" />}
+            {open && <ListItemText primary={t('calendarLink')} />}
           </ListItem>
         </List>
 
         <div style={{ marginTop: "auto", padding: "16px", textAlign: "center" }}>
           {open && (
             user ? (
-              <IconButton component={Link} to="/config" title="Configuration" aria-label="Configuration" sx={{ color: isActive('/config') ? theme.palette.primary.main : theme.palette.text.secondary, backgroundColor: isActive('/config') ? (config?.darkMode ? 'rgba(144, 202, 249, 0.08)' : 'rgba(33, 150, 243, 0.08)') : 'transparent', borderRadius: '8px', p: 1, '&:hover': { backgroundColor: config?.darkMode ? 'rgba(144, 202, 249, 0.12)' : 'rgba(33, 150, 243, 0.12)' } }}>
+              <IconButton component={Link} to="/config" title={t('configTitle')} aria-label={t('configTitle')} sx={{ color: isActive('/config') ? theme.palette.primary.main : theme.palette.text.secondary, backgroundColor: isActive('/config') ? (config?.darkMode ? 'rgba(144, 202, 249, 0.08)' : 'rgba(33, 150, 243, 0.08)') : 'transparent', borderRadius: '8px', p: 1, '&:hover': { backgroundColor: config?.darkMode ? 'rgba(144, 202, 249, 0.12)' : 'rgba(33, 150, 243, 0.12)' } }}>
                 <Settings />
               </IconButton>
             ) : (
               <Button onClick={handleSignIn} disabled={authLoading} variant={config?.theme === 'light' ? "contained" : "outlined"} color="primary" sx={{ width: '100%', p: 1, textTransform: 'none' }}>
-                {authLoading ? "..." : "Sign In"}
+                {authLoading ? t('signingIn') : t('signIn')}
               </Button>
             )
           )}
 
           {!open && (
-            <IconButton onClick={!user ? handleSignIn : undefined} disabled={authLoading && !user} title={user ? user.name : "Sign In"} aria-label={user ? user.name : "Sign In"} sx={{ color: theme.palette.text.secondary, p: 0.75 }}>
+            <IconButton onClick={!user ? handleSignIn : undefined} disabled={authLoading && !user} title={user ? user.name : t('signIn')} aria-label={user ? user.name : t('signIn')} sx={{ color: theme.palette.text.secondary, p: 0.75 }}>
               {authLoading && !user ? (
                 "..."
               ) : user ? (

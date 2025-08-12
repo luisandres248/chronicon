@@ -10,6 +10,7 @@ import EventCard from "./EventCard";
 import EventForm from "./EventForm";
 import EventActionDialog from "./EventActionDialog";
 import AddRecurrenceDialog from "./AddRecurrenceDialog";
+import Logo from "./Logo";
 import SortingControls from "./SortingControls";
 
 const EventsGrid = () => {
@@ -181,12 +182,17 @@ const EventsGrid = () => {
 
   return (
     <Box sx={{ p: 3, position: "relative", minHeight: "100vh" }}>
-      <SortingControls 
-        sortCriteria={sortCriteria} 
-        setSortCriteria={setSortCriteria} 
-        sortOrder={sortOrder} 
-        setSortOrder={setSortOrder} 
-      />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Box sx={{ width: 400, ml: 2 }}>
+          <Logo />
+        </Box>
+        <SortingControls 
+          sortCriteria={sortCriteria} 
+          setSortCriteria={setSortCriteria} 
+          sortOrder={sortOrder} 
+          setSortOrder={setSortOrder} 
+        />
+      </Box>
 
       {sortedEventsForGrid.length > 0 ? (
         <Grid container spacing={3}>

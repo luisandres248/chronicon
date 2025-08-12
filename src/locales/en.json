@@ -49,6 +49,25 @@
     "deleteButton": "Delete",
     "cancelButton": "Cancel",
     "updateButton": "Update",
-    "createButton": "Create"
+    "createButton": "Create",
+    "dateTimeSectionTitle": "Date & Time",
+    "dateFormatLabel": "Date Format",
+    "gridLink": "Grid",
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "signingOut": "Signing Out...",
+    "traditionalView": "Traditional",
+    "streamView": "Stream",
+    "occurrences": "Occurrences",
+    "timeSinceFirstOccurrence": "Time since first occurrence",
+    "lastTime": "Last time",
+    "averageBetweenOccurrences": "Average between occurrences",
+    "tags": "Tags",
+    "editFirstOccurrence": "Edit first occurrence",
+    "addOccurrence": "Add Occurrence",
+    "showHideAllDayNumbers": "Show/Hide numbers of all days",
+    "selectEventToSeeStats": "Select an event to see its statistics.",
+    "noDataTraditional": "No data to display in traditional view.",
+    "noDataStream": "No data to display in stream view."
   }
 }

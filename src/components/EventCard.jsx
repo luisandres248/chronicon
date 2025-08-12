@@ -16,14 +16,16 @@ import {
   Divider,
 } from "@mui/material";
 import { Edit, Delete, Repeat, CalendarMonth } from "@mui/icons-material";
-import { format } from "date-fns";
-import { GlobalContext } from "../context/GlobalContext";
 import { calculateEventStats, formatTimeSince } from "../services/eventService";
+import { GlobalContext } from "../context/GlobalContext";
+import { formatDate } from "../utils/dateFormatter";
+import { useTranslation } from 'react-i18next';
 
 // Changed props: onEdit is now onOpenActionDialog, added onDirectEdit
 const EventCard = ({ event, onOpenActionDialog, onDirectEdit, onDelete }) => { 
   // const navigate = useNavigate(); // No longer used directly for navigation
   const { events, config, calendarColors } = useContext(GlobalContext);
+  const { i18n } = useTranslation();
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
 
   // Calcular estadísticas del evento usando la función del servicio
@@ -83,16 +85,8 @@ const EventCard = ({ event, onOpenActionDialog, onDirectEdit, onDelete }) => {
     setDeleteDialogOpen(false);
   };
 
-  const formatDate = (date) => {
-    if (!date || !(date instanceof Date) || isNaN(date)) {
-      return "No date";
-    }
-    try {
-      return format(date, "PPP");
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return "Invalid date";
-    }
+  const customFormatDate = (date) => {
+    return formatDate(date, config.dateFormat, i18n.language);
   };
 
   // Obtener el color del evento desde la API de Google Calendar
@@ -231,7 +225,7 @@ const EventCard = ({ event, onOpenActionDialog, onDirectEdit, onDelete }) => {
               fontSize="small"
               sx={{ verticalAlign: "middle", mr: 0.5, fontSize: "1rem" }}
             />
-            {formatDate(event.startDate)}
+            {customFormatDate(event.startDate)}
           </Typography>
 
           {event.description && (

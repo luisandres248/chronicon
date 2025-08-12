@@ -46,6 +46,7 @@ import { groupEventsByName, createEventObject, parseGoogleEvent } from "../servi
 import EventForm from "./EventForm";
 import AddRecurrenceDialog from "./AddRecurrenceDialog";
 import logger from "../utils/logger.js";
+import Logo from "./Logo";
 
 /**
  * StatChip component
@@ -266,6 +267,7 @@ function EventCalendar() {
   const [isRecurrenceDialogOpen, setIsRecurrenceDialogOpen] = useState(false);
   const [eventForRecurrenceDialog, setEventForRecurrenceDialog] = useState(null);
   const [recurrenceDialogDate, setRecurrenceDialogDate] = useState(new Date());
+  const [popupBlocked, setPopupBlocked] = useState(false);
   
   const [showAllDayNumbers, setShowAllDayNumbers] = useState(false);
 
@@ -502,47 +504,54 @@ function EventCalendar() {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
       <Box sx={{ p: 2, height: '100%', overflow: 'auto' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box sx={{ width: 400, ml: 2 }}> {/* Logo on the left */}
+            <Logo />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mr: 2 }}> {/* Event selector and buttons on the right */}
+            <Select value={selectedEvent} onChange={handleEventChange} size="small" sx={{ minWidth: 200, maxWidth: 'fit-content', '& .MuiSelect-select': { display: 'flex', alignItems: 'center' }}} startAdornment={<CalendarMonth sx={{ mr: 1, opacity: 0.7 }} />}>
+              {uniqueEventNames.map((name) => (<MenuItem key={name} value={name}>{name}</MenuItem>))}
+            </Select>
+            {selectedEventObject && ( 
+              <>
+                <Tooltip title={t('editFirstOccurrence')}><IconButton color="primary" onClick={handleEditClick} size="small"><Edit /></IconButton></Tooltip>
+                <Tooltip title={t('addOccurrence')}>
+                  <IconButton 
+                    color="primary"
+                    onClick={handleOpenRecurrenceDialogFromButton}
+                    disabled={!selectedEventObject || processing}
+                    size="small"
+                  >
+                    <RepeatIcon />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
+          </Box>
+        </Box>
         <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
           <Grid container spacing={2}>
+            {/* The first Grid item is now empty as its content moved up */}
             <Grid item xs={12}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-                <Select value={selectedEvent} onChange={handleEventChange} size="small" sx={{ minWidth: 200, maxWidth: 'fit-content', '& .MuiSelect-select': { display: 'flex', alignItems: 'center' }}} startAdornment={<CalendarMonth sx={{ mr: 1, opacity: 0.7 }} />}>
-                  {uniqueEventNames.map((name) => (<MenuItem key={name} value={name}>{name}</MenuItem>))}
-                </Select>
-                {selectedEventObject && ( 
-                  <>
-                    <Tooltip title="Editar primera ocurrencia"><IconButton color="primary" onClick={handleEditClick} size="small"><Edit /></IconButton></Tooltip>
-                    <Tooltip title="Añadir Ocurrencia">
-                      <IconButton 
-                        color="primary"
-                        onClick={handleOpenRecurrenceDialogFromButton}
-                        disabled={!selectedEventObject || processing}
-                        size="small"
-                      >
-                        <RepeatIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </>
-                )}
-              </Box>
+              {/* This Grid item was for the event selector, now it's empty */}
             </Grid>
             <Grid item xs={12}>
               {eventStats ? ( 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  <StatChip title="Ocurrencias:" values={formatOccurrenceDates()} icon={<Repeat />} />
-                  <StatChip title="Tiempo desde la primera ocurrencia:" values={formatTimeElapsed(eventStats)} icon={<AccessTime />} />
-                  {eventStats.totalOccurrences > 1 && <StatChip title="Última vez:" values={[`Hace ${eventStats.daysSinceLast} días`, format(eventStats.lastDate, 'dd/MM/yyyy')]} icon={<Update />} />}
-                  {eventStats.totalOccurrences > 1 && eventStats.averageGapDays && <StatChip title="Promedio entre ocurrencias:" values={[`${eventStats.averageGapDays} días`]} icon={<Repeat />} />}
-                  {eventStats.tags && eventStats.tags.length > 0 && <StatChip title="Etiquetas:" values={[eventStats.tags.join(', ')]} icon={<LocalOffer />} />}
+                  <StatChip title={t('occurrences')} values={formatOccurrenceDates()} icon={<Repeat />} />
+                  <StatChip title={t('timeSinceFirstOccurrence')} values={formatTimeElapsed(eventStats)} icon={<AccessTime />} />
+                  {eventStats.totalOccurrences > 1 && <StatChip title={t('lastTime')} values={[`Hace ${eventStats.daysSinceLast} días`, format(eventStats.lastDate, 'dd/MM/yyyy')]} icon={<Update />} />}
+                  {eventStats.totalOccurrences > 1 && eventStats.averageGapDays && <StatChip title={t('averageBetweenOccurrences')} values={[`${eventStats.averageGapDays} días`]} icon={<Repeat />} />}
+                  {eventStats.tags && eventStats.tags.length > 0 && <StatChip title={t('tags')} values={[eventStats.tags.join(', ')]} icon={<LocalOffer />} />}
                 </Box>
-              ) : <Typography variant="body2" color="text.secondary">Selecciona un evento para ver sus estadísticas.</Typography>}
+              ) : <Typography variant="body2" color="text.secondary">{t('selectEventToSeeStats')}</Typography>}
             </Grid>
             <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
               <ToggleButtonGroup value={calendarViewMode} exclusive onChange={handleViewModeChange} aria-label="calendar view mode" size="small">
-                <ToggleButton value="traditional" aria-label="traditional view"><ViewModule sx={{ mr: 0.5 }} fontSize="small" />Tradicional</ToggleButton>
-                <ToggleButton value="stream" aria-label="stream view"><ViewStream sx={{ mr: 0.5 }} fontSize="small" />Stream</ToggleButton>
+                <ToggleButton value="traditional" aria-label="traditional view"><ViewModule sx={{ mr: 0.5 }} fontSize="small" />{t('traditionalView')}</ToggleButton>
+                <ToggleButton value="stream" aria-label="stream view"><ViewStream sx={{ mr: 0.5 }} fontSize="small" />{t('streamView')}</ToggleButton>
               </ToggleButtonGroup>
-              <Tooltip title="Mostrar/Ocultar números de todos los días">
+              <Tooltip title={t('showHideAllDayNumbers')}>
                 <IconButton 
                   onClick={() => setShowAllDayNumbers(!showAllDayNumbers)} 
                   color="primary"
@@ -575,7 +584,7 @@ function EventCalendar() {
                     </Box>
                   </Box>
                 ))
-              ) : ( <Typography sx={{ textAlign: 'center', p:2 }}>No hay datos para mostrar en la vista tradicional.</Typography> )}
+              ) : ( <Typography sx={{ textAlign: 'center', p:2 }}>{t('noDataTraditional')}</Typography> )}
             </Paper>
           </Slide>
 
@@ -595,7 +604,7 @@ function EventCalendar() {
                     );
                   })}
                 </Box>
-              ) : ( <Typography sx={{ textAlign: 'center', p:2 }}>No hay datos para mostrar en la vista de stream.</Typography> )}
+              ) : ( <Typography sx={{ textAlign: 'center', p:2 }}>{t('noDataStream')}</Typography> )}
             </Paper>
           </Slide>
         </Box>

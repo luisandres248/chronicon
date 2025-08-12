@@ -19,6 +19,8 @@ import {
 } from "@mui/material";
 // Removed WbSunny and DarkMode icons as they are no longer used with the Select
 import { GlobalContext } from "../context/GlobalContext";
+import { formatDate } from "../utils/dateFormatter";
+import Logo from "../components/Logo";
 
 const Config = () => {
   const { config, updateConfig } = useContext(GlobalContext);
@@ -46,8 +48,13 @@ const Config = () => {
     }
   };
 
+  const today = new Date();
+
   return (
     <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
+      <Box sx={{ width: 400, margin: '0 auto', mb: 4 }}>
+        <Logo />
+      </Box>
       <Typography variant="h4" gutterBottom sx={{ mb: 4, fontWeight: 500 }}>
         {t('configTitle')}
       </Typography>
@@ -56,7 +63,7 @@ const Config = () => {
         <Grid item xs={12} md={6}>
           <Card elevation={2}>
             <CardHeader 
-              title={t('appearanceSectionTitle')} 
+              title={t('appearanceSectionTitle')}
               sx={{ 
                 borderBottom: `1px solid ${theme.palette.divider}`,
                 '& .MuiCardHeader-title': {
@@ -82,17 +89,13 @@ const Config = () => {
                   <MenuItem value="sunsetGlow">{t('sunsetGlowTheme')}</MenuItem>
                 </Select>
               </FormControl>
-              
-              <Typography sx={{ mb: 2 }}>
-                {t('currentTheme')}: {getThemeName(config.theme)}
-              </Typography>
             </CardContent>
           </Card>
         </Grid>
         <Grid item xs={12} md={6}>
           <Card elevation={2}>
             <CardHeader 
-              title={t('languageSectionTitle')} 
+              title={t('languageSectionTitle')}
               sx={{ 
                 borderBottom: `1px solid ${theme.palette.divider}`,
                 '& .MuiCardHeader-title': {
@@ -113,6 +116,37 @@ const Config = () => {
                 >
                   <MenuItem value="en">English</MenuItem>
                   <MenuItem value="es">Español</MenuItem>
+                </Select>
+              </FormControl>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <Card elevation={2}>
+            <CardHeader 
+              title={t('dateTimeSectionTitle')}
+              sx={{ 
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                '& .MuiCardHeader-title': {
+                  fontSize: '1.2rem',
+                  fontWeight: 500,
+                }
+              }}
+            />
+            <CardContent>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel id="date-format-select-label">{t('dateFormatLabel')}</InputLabel>
+                <Select
+                  labelId="date-format-select-label"
+                  id="date-format-select"
+                  value={config.dateFormat || 'PPP'}
+                  label={t('dateFormatLabel')}
+                  onChange={(e) => updateConfig({ dateFormat: e.target.value })}
+                >
+                  <MenuItem value="PPP">{formatDate(today, 'PPP', i18n.language)}</MenuItem>
+                  <MenuItem value="dd/MM/yyyy">{formatDate(today, 'dd/MM/yyyy', i18n.language)}</MenuItem>
+                  <MenuItem value="MM/dd/yyyy">{formatDate(today, 'MM/dd/yyyy', i18n.language)}</MenuItem>
+                  <MenuItem value="yyyy-MM-dd">{formatDate(today, 'yyyy-MM-dd', i18n.language)}</MenuItem>
                 </Select>
               </FormControl>
             </CardContent>

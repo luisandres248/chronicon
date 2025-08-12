@@ -49,6 +49,25 @@
     "deleteButton": "Eliminar",
     "cancelButton": "Cancelar",
     "updateButton": "Actualizar",
-    "createButton": "Crear"
+    "createButton": "Crear",
+    "dateTimeSectionTitle": "Fecha y Hora",
+    "dateFormatLabel": "Formato de Fecha",
+    "gridLink": "Grilla",
+    "signIn": "Iniciar Sesión",
+    "signOut": "Cerrar Sesión",
+    "signingOut": "Cerrando Sesión...",
+    "traditionalView": "Tradicional",
+    "streamView": "Stream",
+    "occurrences": "Ocurrencias",
+    "timeSinceFirstOccurrence": "Tiempo desde la primera ocurrencia",
+    "lastTime": "Última vez",
+    "averageBetweenOccurrences": "Promedio entre ocurrencias",
+    "tags": "Etiquetas",
+    "editFirstOccurrence": "Editar primera ocurrencia",
+    "addOccurrence": "Añadir Ocurrencia",
+    "showHideAllDayNumbers": "Mostrar/Ocultar números de todos los días",
+    "selectEventToSeeStats": "Selecciona un evento para ver sus estadísticas.",
+    "noDataTraditional": "No hay datos para mostrar en la vista tradicional.",
+    "noDataStream": "No hay datos para mostrar en la vista de stream."
   }
 }
