@@ -1,9 +1,11 @@
 import React from 'react';
+import { useTheme } from '@mui/material/styles';
 
 const SmallLogo = ({ width = 88.783859 }) => {
   const vbW = 88.783859;
   const vbH = 66.083984;
   const height = (width * vbH) / vbW;
+  const theme = useTheme();
 
   return (
     <svg
@@ -62,9 +64,9 @@ const SmallLogo = ({ width = 88.783859 }) => {
         </marker>
 
         <style>{`
-          .line { stroke:#ff4fad; fill:none; stroke-width:3; stroke-linecap:round; }
-          .dot  { fill:#ff4fad; }
-          .txt  { fill:#0f172a; font:600 48px "Cinzel","Cormorant SC","Trajan Pro",serif; }
+          .line { stroke:${theme.palette.secondary.main}; fill:none; stroke-width:3; stroke-linecap:round; }
+          .dot  { fill:${theme.palette.secondary.main}; }
+          .txt  { fill:${theme.palette.text.primary}; font:600 48px "Cinzel","Cormorant SC","Trajan Pro",serif; }
         `}</style>
       </defs>
 
@@ -85,7 +87,7 @@ const SmallLogo = ({ width = 88.783859 }) => {
         y="61"
         textAnchor="middle"
         dominantBaseline="alphabetic"
-        fill="#0f172a"
+        fill={theme.palette.text.primary}
         fontFamily={`Cinzel, 'Cormorant SC', 'Trajan Pro', serif`}
         fontWeight={600}
         fontSize="54"
