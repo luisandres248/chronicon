@@ -2,28 +2,17 @@
 
 Chronicon is a web application designed for personal use to help manage and visualize events by integrating with your Google Calendar. It simplifies tracking recurring activities or important dates by working with a dedicated "Chronicon" calendar within your Google account.
 
-## Key Features
+## Current Features
 
-*   **Secure Google Account Sign-In**: Authenticates using Google OAuth 2.0 to access your calendar data securely.
-*   **Dedicated "Chronicon" Calendar**: Automatically detects if a Google Calendar named "Chronicon" exists or creates one if it doesn't. All events managed by the app are stored here.
-*   **Event Management**:
-    *   **Grid View**: View all your Chronicon events in an organized grid.
-    *   **Create Events**: Add new events with details like name (summary), start date, description, color-coding, and tags.
-    *   **Update Events**: Modify existing event details.
-    *   **Delete Events**: Remove events from your calendar.
-*   **Calendar Visualization**:
-    *   **Traditional View**: Displays events on a familiar month-by-month calendar layout, highlighting days with occurrences.
-    *   **Stream View**: Presents a chronological stream of all days from the first event up to the current day, marking event occurrences.
-*   **Event Statistics & Insights**:
-    *   Track the total number of occurrences for each event.
-    *   See the date of the first and most recent occurrence.
-    *   View time elapsed since the first/last occurrence (in days, months, years, and detailed time).
-    *   Calculate and display the average time gap between occurrences for recurring events.
-    *   Organize and filter by event tags.
-*   **User Interface**:
-    *   **Dark Mode**: Switch between light and dark themes for comfortable viewing.
-    *   **Responsive Design**: Adapts to different screen sizes for use on desktop or mobile devices.
-    *   **Notifications**: Provides feedback for actions like event creation, updates, and authentication status.
+-   **Google Calendar Integration:** Seamlessly connects with the user's Google account to store and retrieve event data.
+-   **User Authentication:** Secure sign-in/sign-out using Google OAuth.
+-   **Chronicon Calendar Management:** Automatically creates and manages a dedicated "Chronicon" calendar within the user's Google Calendar.
+-   **Event Creation & Management:** Users can create, edit, and delete events.
+-   **Event Grid View:** Displays events grouped by name, showing occurrences and statistics (first/last occurrence, recurrence count, time since last, etc.).
+-   **Calendar View:** Provides a traditional calendar interface to visualize events.
+-   **Recurrence Handling:** Supports adding new occurrences to existing event series.
+-   **Theming:** Adapts to light/dark themes.
+-   **SmallLogo Theme Adaptability:** The small logo now dynamically adjusts its colors based on the active theme.
 
 ## Technology Stack
 
@@ -101,18 +90,18 @@ This section outlines the project's architecture and potential future enhancemen
 *   **Completed**: A validation check was added to `googleService.js` to ensure Google API credentials are provided in the environment, preventing configuration-related errors.
 *   **Completed**: The sorting controls were extracted from `EventsGrid.jsx` into a dedicated `SortingControls.jsx` component, making the main grid component cleaner.
 
-### 5. Bug Fixes and Code Stability
+### 5. Bug Fixes and Code Stability (Completed)
 
 *   **Completed**: Resolved a syntax error (`Missing semicolon`) in the `StatChip` component within `EventCalendar.jsx`.
 *   **Completed**: Fixed `ReferenceError: theme is not defined` in `EventCalendar.jsx` by correctly initializing the `theme` object using the `useTheme` hook.
 *   **Completed**: Addressed a "Rules of Hooks" violation in `EventCalendar.jsx` by ensuring all hooks are called unconditionally at the top level of the component.
 *   **Completed**: Corrected `ReferenceError: Cannot access 'defaultEventColor' before initialization` in `EventCalendar.jsx` by reordering variable declarations to ensure proper initialization before use.
 
-### 6. Visual and Style Enhancements (Planned)
+### 6. Visual and Style Enhancements (Completed)
 
-*   **Logo Redesign**: Modernize the "Chronicon" logo for a more polished, elegant, minimalist, simple, clean, and beautiful look.
-*   **Theme Expansion**: Implement 5 distinct themes (Light, Dark, Chronicon, and two new aesthetically pleasing themes) with harmonious and aesthetically proven color schemes. Ensure theme colors harmonize with calendar event colors.
-*   **Font Review**: Evaluate and potentially update the application's fonts for a modern, clean, and beautiful aesthetic.
-*   **Configuration Page Cleanup**: Remove two specific, unnecessary messages from the configuration screen.
-*   **Event Color Naming**: Replace generic "Color 1, 2, 3..." with real, descriptive names for event colors.
+*   **SmallLogo Theme Adaptability**: The small logo now dynamically adjusts its colors based on the active theme.
 *   **Internationalization (i18n)**: Implement an i18n layer with English as the default language and a language selector in the configuration for English and Spanish. Ensure no mixed languages.
+
+### 7. New Feature Implementation (Completed)
+
+*   **Import Events Feature**: Implemented functionality to import events from any Google Calendar into the Chronicon calendar, including calendar selection, event listing with checkboxes, and duplicate prevention.
