@@ -462,14 +462,14 @@ export const getCalendarColors = async () => {
   });
 };
 
-export const fetchCalendarEvents = async (calendarId) => {
+export const fetchCalendarEvents = async (calendarId, singleEvents = false) => {
   return executeWithTokenRefresh(async () => {
     try {
       logger.info(`Fetching events for calendar: ${calendarId}`);
       const response = await window.gapi.client.calendar.events.list({
         calendarId: calendarId,
         showDeleted: false,
-        singleEvents: false
+        singleEvents: singleEvents
       });
 
       if (!response || !response.result || !response.result.items) {

@@ -22,6 +22,7 @@ import {
   CalendarMonth,
   ExpandMore,
   ExpandLess,
+  UploadFile,
 } from "@mui/icons-material";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
@@ -142,6 +143,12 @@ const Sidebar = () => {
               <CalendarMonth />
             </ListItemIcon>
             {open && <ListItemText primary={t('calendarLink')} />}
+          </ListItem>
+          <ListItem component={Link} to="/import" disabled={!user} sx={{ color: isActive('/import') ? theme.palette.primary.main : theme.palette.text.primary, backgroundColor: isActive('/import') ? (config?.darkMode ? 'rgba(144, 202, 249, 0.08)' : 'rgba(33, 150, 243, 0.08)') : 'transparent', borderRadius: '8px', mx: open ? 1 : 'auto', my: 0.5, width: open ? 'auto' : 'fit-content', justifyContent: open ? 'flex-start' : 'center', '&:hover': { backgroundColor: config?.darkMode ? 'rgba(144, 202, 249, 0.12)' : 'rgba(33, 150, 243, 0.12)' } }}>
+            <ListItemIcon sx={{ color: isActive('/import') ? theme.palette.primary.main : 'inherit', minWidth: 'auto', justifyContent: 'center', mr: open ? 1 : 0 }}>
+              <UploadFile />
+            </ListItemIcon>
+            {open && <ListItemText primary={t('importLink')} />}
           </ListItem>
         </List>
 

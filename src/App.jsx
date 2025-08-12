@@ -9,6 +9,7 @@ import Sidebar from "./components/Sidebar";
 import Config from "./pages/Config";
 import EventsGrid from "./components/EventsGrid";
 import EventCalendar from "./components/EventCalendar";
+import ImportEventsPage from "./pages/ImportEventsPage";
 import { Snackbar, Alert } from "@mui/material";
 import { useState } from "react";
 
@@ -39,6 +40,7 @@ function AppContent() {
             <Route path="/" element={<EventsGrid />} />
             <Route path="/calendar" element={<EventCalendar />} />
             <Route path="/config" element={<Config />} />
+            <Route path="/import" element={<ImportEventsPage />} />
           </Routes>
         </main>
       </div>
