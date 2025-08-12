@@ -1,107 +1,148 @@
-# Chronicon
+# Chronicon - Internal Developer Documentation
 
-Chronicon is a web application designed for personal use to help manage and visualize events by integrating with your Google Calendar. It simplifies tracking recurring activities or important dates by working with a dedicated "Chronicon" calendar within your Google account.
+This document provides a comprehensive overview of the Chronicon web application, intended for internal development teams. It details the project's current state, architectural decisions, technical stack, and key functionalities.
 
-## Current Features
+## 1. Project Overview
 
--   **Google Calendar Integration:** Seamlessly connects with the user's Google account to store and retrieve event data.
--   **User Authentication:** Secure sign-in/sign-out using Google OAuth.
--   **Chronicon Calendar Management:** Automatically creates and manages a dedicated "Chronicon" calendar within the user's Google Calendar.
--   **Event Creation & Management:** Users can create, edit, and delete events.
--   **Event Grid View:** Displays events grouped by name, showing occurrences and statistics (first/last occurrence, recurrence count, time since last, etc.).
--   **Calendar View:** Provides a traditional calendar interface to visualize events.
--   **Recurrence Handling:** Supports adding new occurrences to existing event series.
--   **Theming:** Adapts to light/dark themes.
--   **SmallLogo Theme Adaptability:** The small logo now dynamically adjusts its colors based on the active theme.
+Chronicon is a single-page application (SPA) designed to help users manage and visualize personal events by integrating with their Google Calendar. It focuses on tracking recurring activities and important dates, leveraging a dedicated "Chronicon" calendar within the user's Google account.
 
-## Technology Stack
+## 2. Current Features
 
-*   Frontend: React, Vite
-*   UI: Material UI (MUI)
-*   State Management: React Context
-*   Date Management: date-fns
+*   **Google Calendar Integration:** Seamlessly connects with the user's Google account for event data storage and retrieval.
+*   **User Authentication:** Secure sign-in/sign-out using Google OAuth 2.0, managed client-side.
+*   **Dedicated Chronicon Calendar:** Automatically creates and manages a specific "Chronicon" calendar within the user's Google Calendar, ensuring data isolation.
+*   **Event Management (CRUD):** Full Create, Read, Update, and Delete (CRUD) functionality for events.
+*   **Recurrence Handling:** Supports adding new occurrences to existing event series.
+*   **Event Visualization:**
+    *   **Grid View:** Displays events grouped by name, providing detailed statistics such as first/last occurrence, recurrence count, time since last event, and average gap between occurrences.
+    *   **Calendar View:** Offers a traditional calendar interface for visualizing events chronologically.
+*   **Event Import:** Functionality to import events from any user-selected Google Calendar into the Chronicon calendar, including calendar selection, event listing with checkboxes, and duplicate prevention.
+*   **Theming:** Multiple Material UI themes are available (Light, Dark, Chronicon, Ocean Breeze, Sunset Glow), allowing users to customize the application's appearance.
+*   **Internationalization (i18n):** Supports multiple languages, with English and Spanish currently implemented.
+*   **User Configuration:** Persists user preferences (theme, date format, language) in local storage.
+*   **Optimistic UI Updates:** Implemented for event update and delete operations, providing immediate UI feedback and rolling back changes only if the API call fails.
+*   **Robust Token Management:** Automatic token refresh and retry mechanisms for Google API calls to handle token expiration gracefully.
 
-## Getting Started (Local Development)
+## 3. Technology Stack
 
-1.  **Prerequisites**:
-    *   Node.js and npm installed.
-    *   A Google Account.
-    *   You'll need to set up a Google Cloud Project to obtain an API Key and OAuth 2.0 Client ID.
-        *   Enable the "Google Calendar API" and "Google People API" (or Userinfo API).
-        *   Configure the OAuth consent screen.
-        *   Create an OAuth 2.0 Client ID (for Web application) and ensure your development URL (e.g., `http://localhost:5173`) is an authorized JavaScript origin.
-        *   Create an API Key and restrict it appropriately (see Security Notes).
+*   **Frontend Framework:** React (v18)
+*   **Build Tool:** Vite (v5)
+*   **UI Library:** Material UI (MUI v5) with Emotion for styling.
+*   **State Management:** React Context API
+*   **Routing:** React Router DOM (v6)
+*   **Date Management:** `date-fns`
+*   **Internationalization:** `i18next` and `react-i18next`
+*   **Google API Client:** Google API JavaScript Client Library (`gapi.client`) and Google Sign-In (GSI) library for client-side interaction with Google Calendar API.
+*   **Recurrence Rules:** `rrule` for handling complex recurrence patterns (though currently used for simple recurrence creation).
+*   **Color Picker:** `react-color`
 
-2.  **Clone the repository (if applicable) or ensure you are in the project root.**
+## 4. Project Structure
 
-3.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
+The project follows a standard React application structure, organized for modularity and separation of concerns:
 
-4.  **Set up environment variables**:
-    *   Create a `.env` file in the project root by copying `.env.example`.
-    *   Replace the placeholder values with your actual Google API Key and Client ID:
-        ```
-        VITE_GOOGLE_API_KEY=YOUR_GOOGLE_API_KEY_HERE
-        VITE_GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID_HERE
-        ```
+```
+/home/lmarquez/Documents/personal/chronicon/
+├───public/                 # Static assets (favicons)
+├───src/
+│   ├───App.jsx             # Main application component, handles routing and global layout
+│   ├───i18n.js             # Internationalization configuration
+│   ├───index.css           # Global CSS styles (minimal, mostly font imports)
+│   ├───main.jsx            # Application entry point, React DOM rendering
+│   ├───components/         # Reusable UI components
+│   │   ├───AddRecurrenceDialog.jsx
+│   │   ├───EventActionDialog.jsx
+│   │   ├───EventCalendar.jsx
+│   │   ├───EventCard.jsx
+│   │   ├───EventForm.jsx
+│   │   ├───EventsGrid.jsx
+│   │   ├───ImportEventCard.jsx
+│   │   ├───Logo.jsx
+│   │   ├───Navbar.jsx
+│   │   ├───Sidebar.jsx
+│   │   ├───SmallLogo.jsx
+│   │   └───SortingControls.jsx
+│   ├───context/
+│   │   └───GlobalContext.jsx # Centralized state management and business logic
+│   ├───locales/            # Translation files (e.g., en.json, es.json)
+│   ├───pages/              # Top-level components representing different views/routes
+│   │   ├───Config.jsx
+│   │   └───ImportEventsPage.jsx
+│   ├───services/           # API interaction and data transformation logic
+│   │   ├───eventService.js # Event data parsing, transformation, and statistics
+│   │   └───googleService.js# Google API interactions (auth, calendar, events)
+│   └───utils/              # Utility functions
+│       ├───dateFormatter.js# Date formatting utilities
+│       └───logger.js       # Custom logging utility
+├───.dockerignore           # Files to ignore when building Docker images
+├───.gitignore              # Files to ignore in Git
+├───Dockerfile              # Docker build instructions
+├───index.html              # Main HTML file
+├───package-lock.json       # Exact dependency tree
+├───package.json            # Project metadata and dependencies
+├───README.md               # This document
+└───vite.config.js          # Vite build configuration
+```
 
-5.  **Run the development server**:
-    ```bash
-    npm run dev
-    ```
-    The application should be available at `http://localhost:5173` (or another port if specified).
+## 5. Architecture and Design Decisions
 
-## Security Notes
+### 5.1. Client-Side Application (SPA)
 
-*   The Google API Key (`VITE_GOOGLE_API_KEY`) and Client ID (`VITE_GOOGLE_CLIENT_ID`) are sensitive. Keep them confidential.
-*   The `.env` file, which contains these keys, is excluded from Git by `.gitignore`.
-*   **Crucial for deployed applications**: When you deploy this application (e.g., to Vercel), you must configure these environment variables in your hosting provider's settings.
-*   **Google Cloud API Key Restrictions**:
-    *   **Application restrictions**: For client-side usage, set this to "HTTP referrers". Add your Vercel domain(s) (e.g., `your-app-name.vercel.app`) and your local development URLs (e.g., `http://localhost:5173`) to the list of allowed referrers.
-    *   **API restrictions**: Restrict the key to only allow usage of the "Google Calendar API" and any other specific APIs you enabled (like "Google People API" for user profile information).
-    *   Regularly monitor API usage in the Google Cloud Console.
-    It's important to understand that while HTTP referrer and API restrictions are crucial for client-side API key security, they are not entirely foolproof (e.g., referrers can sometimes be spoofed). For applications requiring higher security or handling more sensitive operations, especially if a backend is introduced, moving the API key to a backend proxy that makes Google API calls on behalf of the client is a more robust security architecture. However, for a purely client-side application, diligent API key restrictions in GCP are the primary line of defense.
+Chronicon is implemented as a Single-Page Application (SPA) using React. All rendering and logic occur client-side, with direct interaction with Google APIs from the browser.
 
-## Architectural Notes & Future Improvements
+### 5.2. Centralized State Management (React Context API)
 
-This section outlines the project's architecture and potential future enhancements.
+The application leverages React's Context API (`src/context/GlobalContext.jsx`) for global state management. This design choice centralizes all core application state (user, calendar, events, configuration, loading states) and business logic, providing a single source of truth and minimizing prop drilling.
 
-### 1. Centralized Logic via React Context (Completed)
+*   **`GlobalContext.jsx` Responsibilities:**
+    *   Manages application-wide state.
+    *   Handles user authentication flow (sign-in, sign-out).
+    *   Orchestrates Google Calendar API interactions via `googleService.js`.
+    *   Implements optimistic UI updates for event modifications.
+    *   Persists user configuration to `localStorage`.
+    *   Manages various loading and error states for a responsive UX.
 
-*   **Implementation**: The application's architecture was refactored to centralize all business logic and state management within `GlobalContext.jsx`. Components like `EventsGrid.jsx` and `Sidebar.jsx` are now primarily presentational, consuming data and calling functions (e.g., `handleSignIn`, `handleCreateEvent`) from the context.
-*   **Benefits**: This approach simplifies components, prevents logic duplication, and makes the codebase significantly easier to maintain and debug.
+### 5.3. Service Layer for API Interaction
 
-### 2. Robust Metadata Storage (Completed)
+A dedicated `services` layer (`src/services/`) abstracts interactions with external APIs and handles data transformation:
 
-*   **Implementation**: Custom event data (like `tags`) is now stored using Google Calendar's **`extendedProperties`**. This is a dedicated, invisible key-value store on each event.
-*   **Benefits**: This method is robust, secure, and prevents accidental data corruption by separating application metadata from the user-visible event description.
+*   **`googleService.js`:**
+    *   Encapsulates all direct communication with Google APIs (Google Calendar API, Google Sign-In).
+    *   Manages OAuth 2.0 authentication, including token acquisition, storage, and automatic refreshing.
+    *   Handles the creation and retrieval of the dedicated "Chronicon" calendar.
+    *   Provides CRUD operations for Google Calendar events.
+    *   Includes robust error handling and retry mechanisms for API calls.
+*   **`eventService.js`:**
+    *   Acts as a data mapper, transforming event objects between the application's internal model and the Google Calendar API's format.
+    *   Parses custom metadata (e.g., `tags`) stored in Google Calendar's `extendedProperties`.
+    *   Provides utility functions for grouping events and calculating various event-related statistics (e.g., recurrence count, time since last occurrence).
 
-### 3. API/UX Optimizations (Partially Completed)
+### 5.4. Theming System (Material UI)
 
-*   **Completed**: Unnecessary API calls were eliminated (e.g., after closing a form without changes) to improve performance.
-*   **Completed**: **Optimistic Updates** were implemented for `update` and `delete` operations. The UI now updates instantly, providing a faster user experience, with changes reverted only if the background API call fails.
-*   **Future Improvement**: Implement optimistic updates for event *creation*. This is more complex as it requires creating a temporary local event and replacing it once the final event object is received from Google's API.
+The application utilizes Material UI's theming capabilities to provide a consistent and customizable visual experience. Multiple predefined themes are available, and the user's selected theme is persisted.
 
-### 4. Code Simplification & Validation (Completed)
+### 5.5. Internationalization
 
-*   **Completed**: The codebase was standardized to JavaScript, removing the TypeScript configuration.
-*   **Completed**: A validation check was added to `googleService.js` to ensure Google API credentials are provided in the environment, preventing configuration-related errors.
-*   **Completed**: The sorting controls were extracted from `EventsGrid.jsx` into a dedicated `SortingControls.jsx` component, making the main grid component cleaner.
+The application supports internationalization using `i18next`, allowing for easy translation of UI elements into different languages. Translation files are located in `src/locales/`.
 
-### 5. Bug Fixes and Code Stability (Completed)
+### 5.6. Data Persistence
 
-*   **Completed**: Resolved a syntax error (`Missing semicolon`) in the `StatChip` component within `EventCalendar.jsx`.
-*   **Completed**: Fixed `ReferenceError: theme is not defined` in `EventCalendar.jsx` by correctly initializing the `theme` object using the `useTheme` hook.
-*   **Completed**: Addressed a "Rules of Hooks" violation in `EventCalendar.jsx` by ensuring all hooks are called unconditionally at the top level of the component.
-*   **Completed**: Corrected `ReferenceError: Cannot access 'defaultEventColor' before initialization` in `EventCalendar.jsx` by reordering variable declarations to ensure proper initialization before use.
+*   **User Configuration:** Stored in `localStorage` for client-side persistence across sessions.
+*   **Google Session Data:** Google API tokens, user profile, and Chronicon calendar ID are stored in `localStorage` to maintain user sessions.
 
-### 6. Visual and Style Enhancements (Completed)
+### 5.7. Event Metadata Handling
 
-*   **SmallLogo Theme Adaptability**: The small logo now dynamically adjusts its colors based on the active theme.
-*   **Internationalization (i18n)**: Implement an i18n layer with English as the default language and a language selector in the configuration for English and Spanish. Ensure no mixed languages.
+Custom event metadata, such as `tags`, is stored securely and robustly using Google Calendar's `extendedProperties.private` field. This ensures that application-specific data is associated directly with the Google Calendar event without interfering with standard event fields.
 
-### 7. New Feature Implementation (Completed)
+### 5.8. Logging
 
-*   **Import Events Feature**: Implemented functionality to import events from any Google Calendar into the Chronicon calendar, including calendar selection, event listing with checkboxes, and duplicate prevention.
+A custom logging utility (`src/utils/logger.js`) is implemented to provide configurable logging levels (DEBUG, INFO, WARN, ERROR). This aids in development and debugging, with log levels dynamically adjustable via `sessionStorage` or `window` overrides.
+
+## 6. Conventions
+
+*   **Component Naming:** PascalCase for React components (e.g., `EventCard.jsx`).
+*   **File Naming:** PascalCase for components, camelCase for services and utilities.
+*   **Styling:** Primarily relies on Material UI components and their styling props. Minimal global CSS.
+*   **State Management:** Prefers `useState` and `useContext` for local and global state respectively.
+*   **Asynchronous Operations:** Uses `async/await` for handling promises.
+*   **Error Handling:** Centralized error states in `GlobalContext` and `try...catch` blocks for API calls.
+*   **Environment Variables:** Uses Vite's `import.meta.env` for environment-specific configurations (e.g., Google API keys).
