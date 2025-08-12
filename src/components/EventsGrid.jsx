@@ -5,6 +5,7 @@ import {
   InputLabel, Select, MenuItem, IconButton 
 } from "@mui/material";
 import { Add, ArrowUpward, ArrowDownward } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
 import EventCard from "./EventCard";
 import EventForm from "./EventForm";
@@ -45,6 +46,7 @@ const EventsGrid = () => {
   const [eventForRecurrenceDialog, setEventForRecurrenceDialog] = useState(null);
 
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // --- DERIVED STATE (SORTING LOGIC) ---
   const groupedEventsByName = useMemo(() => {
