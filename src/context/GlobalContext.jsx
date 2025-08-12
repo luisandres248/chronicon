@@ -324,23 +324,65 @@ export const GlobalProvider = ({ children }) => {
   const handleDeleteEvent = useCallback(async (eventId) => {
     if (!calendar?.id || !eventId) throw new Error("Missing calendar or event ID");
 
-    const originalEvents = events;
+    logger.info("handleDeleteEvent called with eventId:", eventId);
 
-    // Optimistic update
-    setEvents(prev => prev.filter(e => e.id !== eventId));
-    logger.info("Optimistically deleted event with ID:", eventId);
+    const originalEvents = events;
+    const eventToDelete = events.find(e => e.id === eventId);
+
+    if (!eventToDelete) {
+      logger.warn(`Event with ID ${eventId} not found for deletion.`);
+      return; // Event not found, nothing to do.
+    }
+
+    // Chronicon's definition of an "event" is a collection of occurrences sharing the same name.
+    // When deleting an event from the grid view, we delete all occurrences with that name.
+    const eventName = eventToDelete.name;
+    const occurrencesToDelete = events.filter(e => e.name === eventName);
+
+    logger.info(`Chronicon event "${eventName}" identified for deletion. Found ${occurrencesToDelete.length} occurrences.`);
+    logger.info("Events state BEFORE optimistic update:", originalEvents);
+    logger.info("Occurrences to delete (IDs):", occurrencesToDelete.map(e => e.id));
+
+    // Optimistic update: filter out all occurrences of this Chronicon event
+    setEvents(prev => prev.filter(e => e.name !== eventName));
+    logger.info(`Optimistically deleted all occurrences of "${eventName}".`);
 
     try {
-      await googleService.deleteEvent(calendar.id, eventId);
-      logger.info("Event deletion confirmed by API.");
+      // Delete each occurrence individually from Google Calendar
+      // This ensures all events with the same name are removed, regardless of Google's recurrence model.
+      for (const occurrence of occurrencesToDelete) {
+        logger.info(`Calling Google API to delete occurrence ID: ${occurrence.id}`);
+        await googleService.deleteEvent(calendar.id, occurrence.id);
+      }
+      logger.info(`All occurrences of "${eventName}" confirmed deleted by API.`);
     } catch (error) {
       // Rollback on error
       setEvents(originalEvents);
-      setError("Failed to delete event. Please try again."); // Set error for UI feedback
+      setError("Failed to delete event. Please try again.");
       logger.error("Rollback due to delete error:", error);
     }
   }, [calendar, events]);
   
+  const handleDeleteSingleOccurrence = useCallback(async (eventId) => {
+    if (!calendar?.id || !eventId) throw new Error("Missing calendar or event ID");
+
+    const originalEvents = events;
+
+    // Optimistic update: remove only the specific occurrence
+    setEvents(prev => prev.filter(e => e.id !== eventId));
+    logger.info("Optimistically deleted single event occurrence with ID:", eventId);
+
+    try {
+      await googleService.deleteEvent(calendar.id, eventId);
+      logger.info("Single event occurrence deletion confirmed by API.");
+    } catch (error) {
+      // Rollback on error
+      setEvents(originalEvents);
+      setError("Failed to delete single event occurrence. Please try again.");
+      logger.error("Rollback due to single occurrence delete error:", error);
+    }
+  }, [calendar, events]);
+
   const handleSaveRecurrence = useCallback(async (originalEvent, newDate) => {
     if (!calendar?.id) throw new Error("No calendar selected");
     setProcessing(true);
@@ -412,6 +454,7 @@ export const GlobalProvider = ({ children }) => {
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
+    handleDeleteSingleOccurrence,
     handleSaveRecurrence,
   };
 

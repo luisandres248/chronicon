@@ -42,7 +42,12 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
           label="Fecha de la Recurrencia"
           value={recurrenceDate}
           onChange={(newValue) => setRecurrenceDate(newValue)}
-          slotProps={{ textField: { fullWidth: true, required: true } }} // Ensure the DatePicker takes full width
+          slotProps={{
+            textField: { fullWidth: true, required: true },
+            popper: {
+              container: document.body,
+            },
+          }} // Ensure the DatePicker takes full width
         />
         {/* 
           Optionally, display some original event details here if useful for context, e.g.,

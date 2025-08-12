@@ -161,7 +161,10 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
                   fullWidth: true,
                   error: !!errors.startDate,
                   helperText: errors.startDate
-                } 
+                }, 
+                popper: {
+                  container: document.body,
+                },
               }}
               disabled={submitting}
             />

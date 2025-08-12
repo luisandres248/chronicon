@@ -45,6 +45,7 @@ import { GlobalContext } from "../context/GlobalContext";
 import { groupEventsByName, createEventObject, parseGoogleEvent } from "../services/eventService";
 import EventForm from "./EventForm";
 import AddRecurrenceDialog from "./AddRecurrenceDialog";
+import EventActionDialog from "./EventActionDialog";
 import logger from "../utils/logger.js";
 import Logo from "./Logo";
 
@@ -251,7 +252,7 @@ function EventCalendar() {
   const defaultEventColor = theme.palette.mode === 'dark' ? '#1976d2' : '#2196f3';
   const { 
     events, appLoading, eventsLoading, processing, error, authError,
-    calendar, user, handleSignIn, handleSignOut, handleCreateEvent, handleUpdateEvent, handleDeleteEvent, handleSaveRecurrence, calendarColors, config 
+    calendar, user, handleSignIn, handleSignOut, handleCreateEvent, handleUpdateEvent, handleDeleteEvent, handleDeleteSingleOccurrence, handleSaveRecurrence, calendarColors, config 
   } = useContext(GlobalContext);
   const { t } = useTranslation();
   
@@ -272,6 +273,9 @@ function EventCalendar() {
   const [showAllDayNumbers, setShowAllDayNumbers] = useState(false);
 
   const [eventToEditFromStream, setEventToEditFromStream] = useState(null);
+
+  const [isActionDialogOpen, setIsActionDialogOpen] = useState(false);
+  const [eventForActionDialog, setEventForActionDialog] = useState(null);
 
   const eventsByName = useMemo(() => groupEventsByName(events), [events]);
 
@@ -402,12 +406,24 @@ function EventCalendar() {
     }
   };
 
+  const handleOpenEventFormForEdit = useCallback((event) => {
+    setEventToEditFromStream(event); // Use this to pre-fill the form
+    setFormOpen(true);
+    setIsActionDialogOpen(false); // Close action dialog
+  }, []);
+
+  const handleOpenAddRecurrenceDialog = useCallback((event) => {
+    setEventForRecurrenceDialog(event);
+    setRecurrenceDialogDate(new Date()); // Default to today, or event.startDate? User didn't specify. Let's use new Date().
+    setIsRecurrenceDialogOpen(true);
+    setIsActionDialogOpen(false); // Close action dialog
+  }, []);
+
   const handleStreamDayClick = useCallback((day) => { 
     const foundEvent = eventOccurrences.find(e => isSameDay(e.startDate, day));
     if (foundEvent) {
-      setEventToEditFromStream(foundEvent); 
-      setSelectedEventObject(foundEvent); 
-      setFormOpen(true);
+      setEventForActionDialog(foundEvent); // Set the event for the action dialog
+      setIsActionDialogOpen(true); // Open the action dialog
     } else {
       if (selectedEvent && eventsByName[selectedEvent] && eventsByName[selectedEvent].length > 0) {
         setEventForRecurrenceDialog(eventsByName[selectedEvent][0]); 
@@ -445,15 +461,21 @@ function EventCalendar() {
     setIsRecurrenceDialogOpen(true);
   };
   const handleDayCellClick = useCallback((dateOfClickedCell) => { 
-    const baseEventForRecurrence = eventToEditFromStream || selectedEventObject; 
-    if (!baseEventForRecurrence && (!selectedEvent || !eventsByName[selectedEvent] || eventsByName[selectedEvent].length === 0) ) {
-      setSnackbar({ open: true, message: "Por favor, selecciona un evento para añadir una recurrencia.", severity: "info" });
-      return;
+    const foundEvent = eventOccurrences.find(e => isSameDay(e.startDate, dateOfClickedCell));
+    if (foundEvent) {
+      setEventForActionDialog(foundEvent); // Set the event for the action dialog
+      setIsActionDialogOpen(true); // Open the action dialog
+    } else {
+      const baseEventForRecurrence = eventToEditFromStream || selectedEventObject; 
+      if (!baseEventForRecurrence && (!selectedEvent || !eventsByName[selectedEvent] || eventsByName[selectedEvent].length === 0) ) {
+        setSnackbar({ open: true, message: "Por favor, selecciona un evento para añadir una recurrencia.", severity: "info" });
+        return;
+      }
+      setEventForRecurrenceDialog(baseEventForRecurrence || eventsByName[selectedEvent][0]);
+      setRecurrenceDialogDate(dateOfClickedCell);
+      setIsRecurrenceDialogOpen(true);
     }
-    setEventForRecurrenceDialog(baseEventForRecurrence || eventsByName[selectedEvent][0]);
-    setRecurrenceDialogDate(dateOfClickedCell);
-    setIsRecurrenceDialogOpen(true);
-  }, [selectedEventObject, eventToEditFromStream, selectedEvent, eventsByName]);
+  }, [selectedEventObject, eventToEditFromStream, selectedEvent, eventsByName, eventOccurrences]);
   const handleCloseRecurrenceDialog = () => { 
     setIsRecurrenceDialogOpen(false);
     setEventForRecurrenceDialog(null);
@@ -628,6 +650,16 @@ function EventCalendar() {
           onSubmit={handleSaveRecurrenceFromCalendar}
           eventToRecur={eventForRecurrenceDialog}
           initialDate={recurrenceDialogDate}
+        />
+
+        {/* EventActionDialog */}
+        <EventActionDialog
+          open={isActionDialogOpen}
+          onClose={() => setIsActionDialogOpen(false)}
+          event={eventForActionDialog}
+          onGoToCalendar={handleOpenEventFormForEdit}
+          onAddRecurrence={handleOpenAddRecurrenceDialog}
+          onDeleteOccurrence={handleDeleteSingleOccurrence}
         />
 
         <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>

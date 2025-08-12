@@ -137,6 +137,14 @@ Custom event metadata, such as `tags`, is stored securely and robustly using Goo
 
 A custom logging utility (`src/utils/logger.js`) is implemented to provide configurable logging levels (DEBUG, INFO, WARN, ERROR). This aids in development and debugging, with log levels dynamically adjustable via `sessionStorage` or `window` overrides.
 
+### 5.9. Chronicon's Event Model and Deletion Logic
+
+Chronicon adopts a specific model for what constitutes an "event," which differs from Google Calendar's native recurring event concept. In Chronicon:
+
+*   **Event Definition:** An "event" is defined as a collection of individual Google Calendar entries that share the *exact same name (summary)*. This allows users to track activities or milestones that occur at irregular intervals but are conceptually part of the same ongoing series (e.g., "Project Alpha Milestone," "Annual Check-up").
+*   **Event Creation:** When a user "adds an occurrence" of an existing event, Chronicon creates a new, standalone Google Calendar event with the same name as the original. It does *not* create or modify Google Calendar's native recurring event series.
+*   **Deletion Logic:** When an "event" (as defined by Chronicon) is deleted from the grid view, the application identifies *all* Google Calendar entries that share the same name as the selected event. It then proceeds to delete each of these individual entries from Google Calendar. This ensures that the entire conceptual "event series" within Chronicon is removed, regardless of whether the underlying Google Calendar entries were part of a native recurring series or just multiple standalone events with identical names. This approach prioritizes Chronicon's internal event model for a consistent user experience.
+
 ## 6. Conventions
 
 *   **Component Naming:** PascalCase for React components (e.g., `EventCard.jsx`).
