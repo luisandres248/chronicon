@@ -8,6 +8,7 @@
     "popupBlockedMessage": "The browser blocked the pop-up window. Please ensure pop-ups are allowed for this site and try again.",
     "selectCalendarMessage": "Please select a calendar to view events.",
     "noEventsMessage": "No events available. Create one in the Grid view.",
+    "noEventsMessageComprehensive": "No events found. You can create a new one using the '+' button, or import events from other Google calendars associated with your account via the 'Import' menu.",
     "configTitle": "Configuration",
     "appearanceSectionTitle": "Appearance",
     "themeLabel": "Theme",
@@ -69,6 +70,23 @@
     "showHideAllDayNumbers": "Show/Hide numbers of all days",
     "selectEventToSeeStats": "Select an event to see its statistics.",
     "noDataTraditional": "No data to display in traditional view.",
-    "noDataStream": "No data to display in stream view."
+    "noDataStream": "No data to display in stream view.",
+    "singleEvent": "Single Event",
+    "complexRecurrence": "Complex Recurrence",
+    "firstOccurrence": "First Occurrence",
+    "repeatsXTimes": "Repeats {{count}} times",
+    "importPageDescription": "Select a calendar to import events into your Chronicon calendar. This will copy the selected events, including their recurrence rules, without modifying the original calendar.",
+    "selectCalendarToImportFrom": "Select Calendar to Import From",
+    "loadingCalendars": "Loading Calendars...",
+    "selectAll": "Select All",
+    "importSelectedGroups": "Import {{count}} Selected Groups",
+    "loadingEvents": "Loading Events...",
+    "noImportableEventsFound": "No importable events found in the selected calendar.",
+    "pleaseSelectCalendar": "Please select a calendar to view events.",
+    "importEventsTitle": "Import Events",
+    "chroniconCalendarNotFound": "Chronicon calendar not found. Please sign in again.",
+    "successfullyImportedEvents": "Successfully imported {{count}} events.",
+    "skippedExistingEvents": "Skipped {{count}} events that already exist in Chronicon.",
+    "importErrorOccurred": "An error occurred while importing \"{{eventName}}\". Some events may not have been imported."
   }
 }

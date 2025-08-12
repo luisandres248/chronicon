@@ -112,7 +112,10 @@ const Config = () => {
                   id="language-select"
                   value={i18n.language}
                   label={t('languageLabel')}
-                  onChange={(e) => i18n.changeLanguage(e.target.value)}
+                  onChange={(e) => {
+                    i18n.changeLanguage(e.target.value);
+                    updateConfig({ language: e.target.value });
+                  }}
                 >
                   <MenuItem value="en">English</MenuItem>
                   <MenuItem value="es">Español</MenuItem>

@@ -12,6 +12,7 @@ const USER_CONFIG_STORAGE_KEY = "chronicon_user_config";
 const defaultConfig = {
   theme: "chronicon",
   dateFormat: "PPP",
+  language: "en", // Add default language
 };
 
 const lightTheme = createTheme({

@@ -8,6 +8,7 @@
     "popupBlockedMessage": "El navegador bloqueó la ventana emergente. Por favor, asegúrate de permitir ventanas emergentes para este sitio y vuelve a intentarlo.",
     "selectCalendarMessage": "Por favor selecciona un calendario para ver los eventos.",
     "noEventsMessage": "No hay eventos disponibles. Crea uno en la vista de Grid.",
+    "noEventsMessageComprehensive": "No se encontraron eventos. Puedes crear uno nuevo con el botón '+', o importar eventos de otros calendarios de Google asociados a tu cuenta a través del menú 'Importar'.",
     "configTitle": "Configuración",
     "appearanceSectionTitle": "Apariencia",
     "themeLabel": "Tema",
@@ -69,6 +70,23 @@
     "showHideAllDayNumbers": "Mostrar/Ocultar números de todos los días",
     "selectEventToSeeStats": "Selecciona un evento para ver sus estadísticas.",
     "noDataTraditional": "No hay datos para mostrar en la vista tradicional.",
-    "noDataStream": "No hay datos para mostrar en la vista de stream."
+    "noDataStream": "No hay datos para mostrar en la vista de stream.",
+    "singleEvent": "Evento Único",
+    "complexRecurrence": "Recurrencia Compleja",
+    "firstOccurrence": "Primera Ocurrencia",
+    "repeatsXTimes": "Se repite {{count}} veces",
+    "importPageDescription": "Selecciona un calendario para importar eventos a tu calendario Chronicon. Esto copiará los eventos seleccionados, incluyendo sus reglas de recurrencia, sin modificar el calendario original.",
+    "selectCalendarToImportFrom": "Seleccionar Calendario para Importar",
+    "loadingCalendars": "Cargando Calendarios...",
+    "selectAll": "Seleccionar Todo",
+    "importSelectedGroups": "Importar {{count}} Grupos Seleccionados",
+    "loadingEvents": "Cargando Eventos...",
+    "noImportableEventsFound": "No se encontraron eventos importables en el calendario seleccionado.",
+    "pleaseSelectCalendar": "Por favor, selecciona un calendario para ver los eventos.",
+    "importEventsTitle": "Importar Eventos",
+    "chroniconCalendarNotFound": "Calendario Chronicon no encontrado. Por favor, inicia sesión de nuevo.",
+    "successfullyImportedEvents": "{{count}} eventos importados correctamente.",
+    "skippedExistingEvents": "Se omitieron {{count}} eventos que ya existen en Chronicon.",
+    "importErrorOccurred": "Ocurrió un error al importar \"{{eventName}}\". Es posible que algunos eventos no se hayan importado."
   }
 }

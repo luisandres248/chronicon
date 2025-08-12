@@ -209,7 +209,7 @@ const EventsGrid = () => {
         </Grid>
       ) : (
         <Typography sx={{ textAlign: 'center', mt: 4 }}>
-          No hay eventos. Crea uno nuevo con el botón '+'.
+          {t('noEventsMessageComprehensive')}
         </Typography>
       )}
 

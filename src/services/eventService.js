@@ -89,6 +89,7 @@ export const parseGoogleEvent = (event) => {
     colorId: event.colorId || null,
     tags,
     recurringEventId: event.recurringEventId,
+    recurrence: event.recurrence, // Add recurrence property
   };
 };
 
