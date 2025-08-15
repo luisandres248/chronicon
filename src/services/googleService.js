@@ -1,4 +1,6 @@
 import logger from "../utils/logger.js";
+import { Capacitor } from "@capacitor/core";
+import { GoogleAuth } from "@capacitor/google-auth";
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
@@ -250,18 +252,15 @@ export const initGoogleAPI = async () => {
 };
 
 export const checkSignInStatus = () => {
-  const { profile, calendar } = loadStoredSession();
-  return { profile, calendar };
+  const { token, profile, calendar } = loadStoredSession();
+  return { token, profile, calendar };
 };
 
 /**
- * Initiates the Google Sign-In process.
+ * Web implementation of the Google Sign-In process.
  * Uses the GSI token client to request an access token.
- * Fetches user profile and Chronicon calendar information upon successful authentication.
- * @param {Function} [onStatusUpdate] - Optional callback for status updates during calendar creation.
- * @returns {Promise<object>} A promise that resolves with userProfile and calendar objects or rejects with an error.
  */
-export const signIn = (onStatusUpdate) => {
+const webSignIn = (onStatusUpdate) => {
   if (!tokenClient) {
     logger.error("SignIn: Token client not initialized.");
     throw new Error("Token client not initialized");
@@ -284,7 +283,7 @@ export const signIn = (onStatusUpdate) => {
           // Store token and timestamp, then set expiry.
           localStorage.setItem("gapi-token", token);
           localStorage.setItem("gapi-token-timestamp", Date.now().toString());
-          setTokenExpiryTime(); 
+          setTokenExpiryTime();
           logger.info("SignIn: Token acquired and expiry time set.");
 
           // Fetch user profile information.
@@ -316,8 +315,8 @@ export const signIn = (onStatusUpdate) => {
             "chronicon-calendar",
             JSON.stringify(calendar)
           );
-          
-          resolve({ userProfile, calendar });
+
+          resolve({ token, userProfile, calendar });
         } catch (error) {
           logger.error("Error during signIn post-auth processing:", error);
           // Clear any potentially partial or corrupted session data from localStorage.
@@ -338,12 +337,12 @@ export const signIn = (onStatusUpdate) => {
       // Request an access token. The GSI library handles the UX (e.g., popup).
       // The response will be directed to `handleAuthResponse` or `error_callback` (defined in initGoogleAPI).
       try {
-        tokenClient.requestAccessToken({}); 
+        tokenClient.requestAccessToken({});
       } catch (error) {
         // This catch handles immediate, synchronous errors from calling requestAccessToken.
         // Async errors related to the token acquisition process itself are handled by the error_callback.
         logger.error("SignIn: Error invoking tokenClient.requestAccessToken:", error);
-        reject(error); 
+        reject(error);
       }
     } catch (error) {
       // This outer catch is for any synchronous errors during the Promise setup.
@@ -351,6 +350,61 @@ export const signIn = (onStatusUpdate) => {
       reject(error);
     }
   });
+};
+
+const nativeSignIn = async (onStatusUpdate) => {
+  try {
+    const authResult = await GoogleAuth.signIn();
+    const token = authResult?.accessToken || authResult?.access_token || authResult?.authentication?.accessToken;
+    if (!token) {
+      throw new Error("No access token returned from GoogleAuth");
+    }
+
+    window.gapi.client.setToken({ access_token: token });
+
+    localStorage.setItem("gapi-token", token);
+    localStorage.setItem("gapi-token-timestamp", Date.now().toString());
+    setTokenExpiryTime();
+
+    const userResponse = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!userResponse.ok) {
+      throw new Error(`Failed to fetch user info: ${userResponse.statusText}`);
+    }
+    const userProfile = await userResponse.json();
+
+    const calendar = await getOrCreateChroniconCalendar(onStatusUpdate);
+
+    localStorage.setItem("user-profile", JSON.stringify(userProfile));
+    localStorage.setItem("chronicon-calendar", JSON.stringify(calendar));
+
+    return { token, userProfile, calendar };
+  } catch (error) {
+    logger.error("Native signIn error:", error);
+    localStorage.removeItem("gapi-token");
+    localStorage.removeItem("gapi-token-timestamp");
+    localStorage.removeItem("user-profile");
+    localStorage.removeItem("chronicon-calendar");
+    if (window.gapi?.client) {
+      window.gapi.client.setToken(null);
+    }
+    throw error;
+  }
+};
+
+/**
+ * Initiates the Google Sign-In process.
+ * In native platforms uses Capacitor GoogleAuth, otherwise falls back to web GSI flow.
+ * Returns the access token along with user profile and Chronicon calendar data.
+ * @param {Function} [onStatusUpdate] - Optional callback for status updates during calendar creation.
+ * @returns {Promise<object>} An object containing token, userProfile and calendar.
+ */
+export const signIn = (onStatusUpdate) => {
+  if (Capacitor.isNativePlatform()) {
+    return nativeSignIn(onStatusUpdate);
+  }
+  return webSignIn(onStatusUpdate);
 };
 
 export const signOut = async () => {
