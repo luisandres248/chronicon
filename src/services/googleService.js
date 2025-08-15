@@ -1,6 +1,9 @@
 import logger from "../utils/logger.js";
-import { Capacitor } from "@capacitor/core";
-import { GoogleAuth } from "@capacitor/google-auth";
+
+const Capacitor =
+  typeof window !== "undefined" && window.Capacitor
+    ? window.Capacitor
+    : { isNativePlatform: () => false };
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
@@ -415,6 +418,10 @@ const webSignIn = (onStatusUpdate) => {
 
 const nativeSignIn = async (onStatusUpdate) => {
   try {
+    const GoogleAuth = Capacitor.Plugins?.GoogleAuth;
+    if (!GoogleAuth) {
+      throw new Error("GoogleAuth plugin not available");
+    }
     const authResult = await GoogleAuth.signIn();
     const token = authResult?.accessToken || authResult?.access_token || authResult?.authentication?.accessToken;
     if (!token) {
