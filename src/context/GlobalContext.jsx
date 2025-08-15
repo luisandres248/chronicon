@@ -244,9 +244,10 @@ export const GlobalProvider = ({ children }) => {
     setAuthLoading(true);
     setAuthError(null);
     try {
-      const { userProfile, calendar } = await googleService.signIn();
+      const { token, userProfile, calendar } = await googleService.signIn();
       setUser(userProfile);
       setCalendar(calendar);
+      logger.info("Received Google access token", token ? "present" : "missing");
     } catch (err) {
       if (err?.error !== "popup_closed_by_user") {
         logger.error("Error signing in:", err);
