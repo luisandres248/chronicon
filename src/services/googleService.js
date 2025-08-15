@@ -12,6 +12,7 @@ let gapiInitialized = false;
 let tokenClient = null;
 let tokenRefreshInProgress = false;
 let tokenExpiryTime = null;
+let externalAccessToken = null;
 
 /**
  * Sets the token expiry time to 55 minutes from the current time.
@@ -63,6 +64,28 @@ const loadStoredSession = () => {
       window.gapi.client.setToken(null);
     }
     return { token: null, profile: null, calendar: null };
+  }
+};
+
+/**
+ * Sets an access token obtained externally (e.g., from a native plugin).
+ * Configures the GAPI client with the provided token and persists it.
+ * @param {string} token - The access token to use for Google API requests.
+ */
+export const setNativeAccessToken = (token) => {
+  try {
+    externalAccessToken = token;
+
+    if (window.gapi?.client) {
+      window.gapi.client.setToken({ access_token: token });
+    }
+
+    localStorage.setItem("gapi-token", token);
+    localStorage.setItem("gapi-token-timestamp", Date.now().toString());
+    setTokenExpiryTime();
+    logger.info("Native access token configured successfully");
+  } catch (error) {
+    logger.error("Error setting native access token:", error);
   }
 };
 
@@ -141,22 +164,34 @@ export const refreshToken = () => {
  */
 export const executeWithTokenRefresh = async (apiCall) => {
   try {
-    if (isTokenExpiringSoon()) {
-      logger.info("Token is expiring soon or not set, attempting refresh before API call...");
+    if (tokenClient && !externalAccessToken && isTokenExpiringSoon()) {
+      logger.info(
+        "Token is expiring soon or not set, attempting refresh before API call..."
+      );
       await refreshToken();
     }
-    
+
     return await apiCall();
   } catch (error) {
     // Check if the error is an authentication error (e.g., 401)
-    if (error.status === 401 || (error.result && error.result.error && error.result.error.code === 401)) {
-      logger.warn("Received 401 error from API call, attempting to refresh token and retry.");
+    if (
+      tokenClient &&
+      !externalAccessToken &&
+      (error.status === 401 ||
+        (error.result && error.result.error && error.result.error.code === 401))
+    ) {
+      logger.warn(
+        "Received 401 error from API call, attempting to refresh token and retry."
+      );
       try {
         await refreshToken();
         // Retry the API call with the new token
         return await apiCall();
       } catch (refreshError) {
-        logger.error("Failed to refresh token after API call failed:", refreshError);
+        logger.error(
+          "Failed to refresh token after API call failed:",
+          refreshError
+        );
         throw refreshError;
       }
     }
@@ -164,7 +199,7 @@ export const executeWithTokenRefresh = async (apiCall) => {
   }
 };
 
-export const initGoogleAPI = async () => {
+export const initGoogleAPI = async ({ useTokenClient = true } = {}) => {
   if (!CLIENT_ID || !API_KEY) {
     const errorMsg = "Google API Client ID or API Key is missing. Please check your .env file.";
     logger.error(errorMsg);
@@ -180,46 +215,78 @@ export const initGoogleAPI = async () => {
     gapiScript.src = "https://apis.google.com/js/api.js";
 
     gapiScript.onload = () => {
-      // Load the Google Sign-In (GSI) client library after GAPI is loaded.
-      const gsiScript = document.createElement("script");
-      gsiScript.src = "https://accounts.google.com/gsi/client";
+      if (useTokenClient) {
+        // Load the Google Sign-In (GSI) client library after GAPI is loaded.
+        const gsiScript = document.createElement("script");
+        gsiScript.src = "https://accounts.google.com/gsi/client";
 
-      gsiScript.onload = () => {
-        // Initialize the GAPI client after GSI is loaded.
+        gsiScript.onload = () => {
+          // Initialize the GAPI client after GSI is loaded.
+          window.gapi.load("client", async () => {
+            try {
+              await window.gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: [
+                  "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest", // Calendar API
+                ],
+              });
+
+              // Initialize the GSI token client for handling OAuth2.
+              tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: "", // Callback is defined dynamically at the time of token request.
+                error_callback: (err) => {
+                  logger.error("Token client error_callback triggered:", err);
+
+                  // Specifically handle popup blocked/closed errors by dispatching a custom event.
+                  if (err.type === 'popup_failed_to_open' || err.type === 'popup_closed') {
+                    logger.warn("Popup was blocked or closed by the user. Dispatching 'auth-popup-blocked' event.");
+
+                    if (typeof window !== 'undefined') {
+                      const errorEvent = new CustomEvent('auth-popup-blocked', {
+                        detail: { message: "El navegador bloqueó la ventana de autenticación. Por favor, permite ventanas emergentes para este sitio." }
+                      });
+                      window.dispatchEvent(errorEvent);
+                    }
+                  }
+                },
+                ux_mode: "popup", // Prefer popup UX for token requests.
+                include_granted_scopes: true, // Include previously granted scopes.
+              });
+
+              // Attempt to load any existing session from localStorage.
+              const { token } = loadStoredSession();
+              if (token) {
+                window.gapi.client.setToken({ access_token: token });
+              }
+
+              gapiInitialized = true;
+              resolve(window.gapi);
+            } catch (error) {
+              logger.error("Error initializing GAPI client:", error);
+              reject(error);
+            }
+          });
+        };
+
+        gsiScript.onerror = (error) => {
+          logger.error("Error loading GSI script:", error);
+          reject(error);
+        };
+        document.body.appendChild(gsiScript);
+      } else {
+        // Initialize GAPI client without the GSI library (token handled externally)
         window.gapi.load("client", async () => {
           try {
             await window.gapi.client.init({
               apiKey: API_KEY,
               discoveryDocs: [
-                "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest", // Calendar API
+                "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest",
               ],
             });
 
-            // Initialize the GSI token client for handling OAuth2.
-            tokenClient = google.accounts.oauth2.initTokenClient({
-              client_id: CLIENT_ID,
-              scope: SCOPES,
-              callback: "", // Callback is defined dynamically at the time of token request.
-              error_callback: (err) => { // Handles errors from the token client itself.
-                logger.error("Token client error_callback triggered:", err);
-                
-                // Specifically handle popup blocked/closed errors by dispatching a custom event.
-                if (err.type === 'popup_failed_to_open' || err.type === 'popup_closed') {
-                  logger.warn("Popup was blocked or closed by the user. Dispatching 'auth-popup-blocked' event.");
-                  
-                  if (typeof window !== 'undefined') {
-                    const errorEvent = new CustomEvent('auth-popup-blocked', { 
-                      detail: { message: "El navegador bloqueó la ventana de autenticación. Por favor, permite ventanas emergentes para este sitio." } 
-                    });
-                    window.dispatchEvent(errorEvent);
-                  }
-                }
-              },
-              ux_mode: "popup", // Prefer popup UX for token requests.
-              include_granted_scopes: true, // Include previously granted scopes.
-            });
-
-            // Attempt to load any existing session from localStorage.
+            // Load any stored session token
             const { token } = loadStoredSession();
             if (token) {
               window.gapi.client.setToken({ access_token: token });
@@ -232,13 +299,7 @@ export const initGoogleAPI = async () => {
             reject(error);
           }
         });
-      };
-
-      gsiScript.onerror = (error) => {
-        logger.error("Error loading GSI script:", error);
-        reject(error);
-      };
-      document.body.appendChild(gsiScript);
+      }
     };
 
     gapiScript.onerror = (error) => {
