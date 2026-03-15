@@ -1,10 +1,11 @@
-import { format, isValid, parse } from 'date-fns';
-import { es, enUS } from 'date-fns/locale';
+import { format, isValid, parse } from "date-fns";
+import { es, enUS } from "date-fns/locale";
 import logger from "./logger.js";
 import i18n from "../i18n";
 
 const locales = { es, en: enUS };
 export const DATE_FORMAT_OPTIONS = ["yyyy/MM/dd", "dd/MM/yyyy", "MM/dd/yyyy"];
+export const getDateLocale = (locale) => locales[locale] || enUS;
 
 export const normalizeDateFormat = (formatStr) =>
   DATE_FORMAT_OPTIONS.includes(formatStr) ? formatStr : DATE_FORMAT_OPTIONS[0];
@@ -15,7 +16,7 @@ export const formatDate = (date, formatStr, locale) => {
   }
   try {
     return format(date, normalizeDateFormat(formatStr), {
-      locale: locales[locale] || enUS 
+      locale: getDateLocale(locale)
     });
   } catch (error) {
     logger.warn("Error formatting date:", error);
@@ -32,7 +33,7 @@ export const parseDate = (value, formatStr, locale) => {
   try {
     const safeFormat = normalizeDateFormat(formatStr);
     const parsed = parse(text, safeFormat, new Date(), {
-      locale: locales[locale] || enUS,
+      locale: getDateLocale(locale),
     });
 
     if (!isValid(parsed)) {
@@ -40,7 +41,7 @@ export const parseDate = (value, formatStr, locale) => {
     }
 
     return format(parsed, safeFormat, {
-      locale: locales[locale] || enUS,
+      locale: getDateLocale(locale),
     }) === text
       ? parsed
       : null;

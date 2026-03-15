@@ -3,6 +3,7 @@ import { GlobalContext } from "../context/GlobalContext";
 import { useTranslation } from "react-i18next";
 import logger from "../utils/logger.js";
 import ColorSelect from "./ColorSelect";
+import DateField from "./DateField";
 import { CloseIcon } from "./icons";
 import { formatDate, normalizeDateFormat, parseDate } from "../utils/dateFormatter";
 
@@ -190,19 +191,13 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
               {errors.name ? <span className="event-form-field__error">{errors.name}</span> : null}
             </label>
 
-            <label className="event-form-field">
-              <span className="setting-field__label">{t("startDateLabel")}</span>
-              <input
-                className={`event-form-field__input ${errors.startDate ? "event-form-field__input--error" : ""}`}
-                value={formData.startDate}
-                onChange={(eventInput) => setFormData({ ...formData, startDate: eventInput.target.value })}
-                placeholder={dateFormat}
-                inputMode="numeric"
-                disabled={submitting}
-              />
-              <span className="event-form-field__helper">{dateFormat}</span>
-              {errors.startDate ? <span className="event-form-field__error">{errors.startDate}</span> : null}
-            </label>
+            <DateField
+              label={t("startDateLabel")}
+              value={formData.startDate}
+              onChange={(startDate) => setFormData({ ...formData, startDate })}
+              error={errors.startDate}
+              disabled={submitting}
+            />
 
             <label className="event-form-field">
               <span className="setting-field__label">{t("descriptionLabel")}</span>

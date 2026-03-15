@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "./icons";
 
-function CustomSelect({ label, value, onChange, options }) {
+function CustomSelect({ label, value, onChange, options, containerClassName = "", triggerClassName = "", menuClassName = "" }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
 
@@ -19,18 +19,18 @@ function CustomSelect({ label, value, onChange, options }) {
   const selectedOption = options.find((option) => option.value === value) || options[0];
 
   return (
-    <div className="custom-select" ref={rootRef}>
-      <span className="setting-field__label">{label}</span>
+    <div className={`custom-select ${containerClassName}`.trim()} ref={rootRef}>
+      {label ? <span className="setting-field__label">{label}</span> : null}
       <button
         type="button"
-        className={`custom-select__trigger ${open ? "custom-select__trigger--open" : ""}`}
+        className={`custom-select__trigger ${triggerClassName} ${open ? "custom-select__trigger--open" : ""}`.trim()}
         onClick={() => setOpen((current) => !current)}
       >
         <span>{selectedOption?.label ?? ""}</span>
         {open ? <ChevronUpIcon width="16" height="16" /> : <ChevronDownIcon width="16" height="16" />}
       </button>
       {open ? (
-        <div className="custom-select__menu">
+        <div className={`custom-select__menu ${menuClassName}`.trim()}>
           {options.map((option) => (
             <button
               key={option.value}

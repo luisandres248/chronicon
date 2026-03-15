@@ -754,6 +754,166 @@ textarea {
   font-size: 0.76rem;
 }
 
+.date-field {
+  position: relative;
+}
+
+.date-field__control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px;
+  gap: 8px;
+}
+
+.date-field__toggle svg {
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.date-field__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  border: 1px solid var(--border-soft);
+  background: var(--panel-soft);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.date-field__popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  width: min(100%, 320px);
+  min-width: 280px;
+  padding: 12px;
+  border: 2px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.date-field__calendar-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.date-field__calendar-selects {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.date-field__select {
+  margin-top: 0;
+}
+
+.date-field__select .setting-field__label {
+  display: none;
+}
+
+.date-field__select-trigger {
+  min-height: 36px;
+  padding: 8px 10px;
+}
+
+.date-field__select-menu {
+  max-height: 220px;
+}
+
+.date-field__select-menu--year {
+  max-height: 260px;
+}
+
+.date-field__calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.date-field__nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.date-field__toggle:hover {
+  border-color: var(--accent);
+}
+
+.date-field__calendar {
+  --rdp-accent-color: var(--accent-soft);
+  --rdp-accent-background-color: var(--accent-soft);
+  --rdp-day-height: 34px;
+  --rdp-day-width: 34px;
+  --rdp-day_button-height: 34px;
+  --rdp-day_button-width: 34px;
+  --rdp-dropdown-gap: 8px;
+  --rdp-nav-height: 36px;
+  --rdp-animation_duration: 0s;
+  margin: 0;
+}
+
+.date-field__calendar .rdp-root {
+  margin: 0;
+}
+
+.date-field__calendar .rdp-month_caption {
+  display: none;
+}
+
+.date-field__calendar .rdp-weekday {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.date-field__calendar .rdp-day_button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+
+.date-field__calendar .rdp-selected .rdp-day_button {
+  background: var(--accent-soft);
+  color: #f5f4f1;
+}
+
+.date-field__calendar .rdp-outside {
+  color: var(--muted-2);
+}
+
+.date-field__calendar .rdp-outside .rdp-day_button {
+  background: transparent;
+}
+
+.date-field__calendar .rdp-day {
+  border: 0;
+}
+
+.date-field__calendar .rdp-day_button:hover {
+  background: var(--panel-soft);
+}
+
+.date-field__nav-button:hover {
+  background: var(--panel-soft);
+}
+
 .event-form-tag {
   display: inline-flex;
   align-items: center;
@@ -804,6 +964,8 @@ textarea {
   z-index: 20;
   display: flex;
   flex-direction: column;
+  max-height: 240px;
+  overflow-y: auto;
   border: 2px solid var(--border);
   background: var(--panel-alt);
   box-shadow: var(--shadow);

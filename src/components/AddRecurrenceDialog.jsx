@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
+import DateField from "./DateField";
 import { formatDate, normalizeDateFormat, parseDate } from "../utils/dateFormatter";
 
 function toConfiguredDateValue(date, formatStr, locale) {
@@ -13,10 +14,12 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
   const { t, i18n } = useTranslation();
   const dateFormat = normalizeDateFormat(config?.dateFormat);
   const [recurrenceDate, setRecurrenceDate] = useState(toConfiguredDateValue(initialDate || new Date(), dateFormat, i18n.language));
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (open) {
       setRecurrenceDate(toConfiguredDateValue(initialDate || new Date(), dateFormat, i18n.language));
+      setError("");
     }
   }, [open, initialDate, dateFormat, i18n.language]);
 
@@ -40,6 +43,7 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
   const handleSave = () => {
     const parsedDate = parseDate(recurrenceDate, dateFormat, i18n.language);
     if (!parsedDate) {
+      setError(t("invalidStartDate"));
       return;
     }
 
@@ -64,17 +68,19 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
           </h2>
         </div>
         <div className="simple-dialog__body">
-          <label className="simple-dialog__field">
-            <span className="setting-field__label">{t("recurrenceDateLabel")}</span>
-            <input
-              className="simple-dialog__input"
-              value={recurrenceDate}
-              placeholder={dateFormat}
-              inputMode="numeric"
-              onChange={(event) => setRecurrenceDate(event.target.value)}
-            />
-            <span className="event-form-field__helper">{dateFormat}</span>
-          </label>
+          <DateField
+            className="simple-dialog__field"
+            inputClassName="simple-dialog__input"
+            label={t("recurrenceDateLabel")}
+            value={recurrenceDate}
+            onChange={(nextValue) => {
+              setRecurrenceDate(nextValue);
+              if (error) {
+                setError("");
+              }
+            }}
+            error={error}
+          />
         </div>
         <div className="simple-dialog__actions">
           <button type="button" className="chronicon-button chronicon-button--ghost" onClick={onClose}>
