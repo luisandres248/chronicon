@@ -36,16 +36,33 @@ async function withStore(storeName, mode, callback) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(storeName, mode);
     const store = tx.objectStore(storeName);
-    callback(store, resolve, reject);
+    let result;
+    let settled = false;
 
-    tx.oncomplete = () => db.close();
-    tx.onerror = () => {
+    const resolveOnComplete = (value) => {
+      result = value;
+    };
+
+    const rejectTransaction = (error) => {
+      if (settled) return;
+      settled = true;
       db.close();
-      reject(tx.error);
+      reject(error);
+    };
+
+    callback(store, resolveOnComplete, rejectTransaction);
+
+    tx.oncomplete = () => {
+      if (settled) return;
+      settled = true;
+      db.close();
+      resolve(result);
+    };
+    tx.onerror = () => {
+      rejectTransaction(tx.error);
     };
     tx.onabort = () => {
-      db.close();
-      reject(tx.error);
+      rejectTransaction(tx.error);
     };
   });
 }

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Chronicon</string>
+    <string name="title_activity_main">Chronicon</string>
+    <string name="package_name">com.chronicon.app</string>
+    <string name="custom_url_scheme">com.chronicon.app</string>
+</resources>

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import Wordmark from "./Wordmark";
-import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, GridIcon, SettingsIcon, UploadIcon } from "./icons";
+import { CalendarIcon, GridIcon, SettingsIcon, UploadIcon } from "./icons";
 
 const NAV_ITEMS = [
   { to: "/", key: "gridLink", icon: GridIcon },
@@ -25,29 +25,21 @@ function Sidebar({ isOpen, setIsOpen }) {
 
   return (
     <aside className={`sidebar ${isOpen ? "sidebar--open" : ""}`}>
+      <button
+        type="button"
+        className="sidebar__notch"
+        onClick={() => setIsOpen((current) => !current)}
+        aria-label={isOpen ? t("collapseMenu") : t("expandMenu")}
+      >
+        <span />
+        <span />
+        <span />
+      </button>
       <div className="sidebar__inner">
-        <button
-          type="button"
-          className="sidebar__notch"
-          onClick={() => setIsOpen((current) => !current)}
-          aria-label={isOpen ? t("collapseMenu") : t("expandMenu")}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
         <div className="sidebar__header">
           <div className="sidebar__brand">
             <Wordmark compact={!isOpen} inverted showName={false} />
           </div>
-          <button
-            type="button"
-            className="sidebar__toggle"
-            onClick={() => setIsOpen((current) => !current)}
-            aria-label={isOpen ? t("collapseMenu") : t("expandMenu")}
-          >
-            {isOpen ? <ChevronLeftIcon width="16" height="16" /> : <ChevronRightIcon width="16" height="16" />}
-          </button>
         </div>
 
         <nav className="sidebar__nav" aria-label={t("mainNavigation")}>

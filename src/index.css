@@ -2,6 +2,11 @@
 @import url("https://fontlibrary.org//face/capitalis-minimalis");
 
 :root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --sidebar-notch-overlap: 20px;
   --bg: #dddddb;
   --panel: #c6c6c2;
   --panel-alt: #bbbbb6;
@@ -21,6 +26,12 @@
   --accent-soft-base: #607686;
   --grid-base: #4a535a;
   --shadow: 0 18px 40px rgba(25, 33, 38, 0.14);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
 }
 
 body {
@@ -57,13 +68,19 @@ textarea {
 
 .app-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
 }
 
 .app-shell__main {
   min-height: 100vh;
+  min-height: 100dvh;
   margin-left: 92px;
-  padding: 10px 14px 48px;
+  padding:
+    calc(10px + var(--safe-top))
+    calc(14px + var(--safe-right))
+    calc(48px + var(--safe-bottom))
+    calc(14px + var(--safe-left));
   transition: margin-left 0.22s ease;
 }
 
@@ -76,6 +93,7 @@ textarea {
   inset: 0 auto 0 0;
   z-index: 30;
   width: 92px;
+  overflow: visible;
   transition: width 0.22s ease, transform 0.22s ease;
 }
 
@@ -88,37 +106,44 @@ textarea {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 20px 10px;
+  padding:
+    calc(20px + var(--safe-top))
+    calc(10px + var(--safe-right))
+    calc(20px + var(--safe-bottom))
+    calc(10px + var(--safe-left));
   background: var(--rail);
+  border-top: 1px solid var(--rail-border);
   border-right: 2px solid var(--rail-border);
 }
 
 .sidebar__notch {
-  display: none;
+  position: absolute;
+  top: 0;
+  right: -22px;
+  z-index: 2;
+  display: block;
+  width: 24px;
+  height: calc(88px + var(--sidebar-notch-overlap));
+  border: 1px solid var(--rail-border);
+  border-left: 0;
+  background: var(--rail);
+  border-radius: 0;
+  padding: calc(14px + var(--safe-top) + 2px) 5px 28px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 24px), 0 100%);
 }
 
 .sidebar__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  justify-content: center;
   margin-bottom: 18px;
 }
 
 .sidebar__brand {
-  flex: 1;
   display: flex;
   justify-content: center;
-}
-
-.sidebar__toggle {
-  width: 28px;
-  height: 28px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--rail-ink);
-  cursor: pointer;
 }
 
 .sidebar__nav {
@@ -595,8 +620,8 @@ textarea {
 
 .floating-add-button {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  right: calc(16px + var(--safe-right));
+  bottom: calc(16px + var(--safe-bottom));
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -1105,6 +1130,11 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding:
+    var(--safe-top)
+    var(--safe-right)
+    var(--safe-bottom)
+    var(--safe-left);
   background: rgba(0, 0, 0, 0.4);
   color: #fff;
   font-size: 1rem;
@@ -1117,7 +1147,11 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
+  padding:
+    calc(20px + var(--safe-top))
+    calc(20px + var(--safe-right))
+    calc(20px + var(--safe-bottom))
+    calc(20px + var(--safe-left));
   background: rgba(0, 0, 0, 0.42);
 }
 
@@ -1323,7 +1357,7 @@ textarea {
 @media (max-width: 800px) {
   .app-shell__main {
     margin-left: 0;
-    padding-top: 56px;
+    padding-top: calc(56px + var(--safe-top));
   }
 
   .event-form-dialog__body {
@@ -1348,21 +1382,7 @@ textarea {
   }
 
   .sidebar__notch {
-    position: absolute;
-    top: -4px;
-    right: -24px;
-    z-index: 2;
-    display: block;
-    width: 24px;
-    height: 88px;
-    border: 1px solid var(--rail-border);
-    border-left: 0;
-    background: var(--rail);
-    border-radius: 0;
-    padding: 14px 5px 28px;
-    cursor: pointer;
-    box-shadow: var(--shadow);
-    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 24px), 0 100%);
+    top: 0;
   }
 
   .sidebar__notch span {
@@ -1380,8 +1400,8 @@ textarea {
   }
 
   .floating-add-button {
-    right: 12px;
-    bottom: 12px;
+    right: calc(12px + var(--safe-right));
+    bottom: calc(12px + var(--safe-bottom));
     min-height: 42px;
     padding: 9px 16px 9px 14px;
     font-size: 0.86rem;
@@ -1396,7 +1416,11 @@ textarea {
   }
 
   .modal-overlay {
-    padding: 12px;
+    padding:
+      calc(12px + var(--safe-top))
+      calc(12px + var(--safe-right))
+      calc(12px + var(--safe-bottom))
+      calc(12px + var(--safe-left));
   }
 
   .simple-dialog__actions {

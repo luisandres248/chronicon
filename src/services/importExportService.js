@@ -24,6 +24,21 @@ function parseIcsDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function formatUtcTimestamp(date) {
+  const parts = [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
+    "T",
+    String(date.getUTCHours()).padStart(2, "0"),
+    String(date.getUTCMinutes()).padStart(2, "0"),
+    String(date.getUTCSeconds()).padStart(2, "0"),
+    "Z",
+  ];
+
+  return parts.join("");
+}
+
 export function exportEventsToJson(events) {
   const payload = {
     version: 1,
@@ -61,7 +76,7 @@ export function exportEventsToIcs(events) {
       const nextDateValue = format(addDays(event.startDate, 1), "yyyyMMdd");
       lines.push("BEGIN:VEVENT");
       lines.push(`UID:${event.id}@chronicon.local`);
-      lines.push(`DTSTAMP:${format(new Date(), "yyyyMMdd'T'HHmmss'Z'")}`);
+      lines.push(`DTSTAMP:${formatUtcTimestamp(new Date())}`);
       lines.push(`DTSTART;VALUE=DATE:${dateValue}`);
       lines.push(`DTEND;VALUE=DATE:${nextDateValue}`);
       lines.push(`SUMMARY:${padLine(event.name)}`);
