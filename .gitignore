@@ -8,3 +8,10 @@
 
 # Environment variables
 .env
+.env.*
+!.env.example
+
+# Android signing and local machine config
+*.jks
+*.keystore
+*.p12

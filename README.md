@@ -14,6 +14,7 @@ La app está pensada como una interfaz mobile-first, funciona offline y guarda t
 - `i18next`
 - IndexedDB
 - `vite-plugin-pwa`
+- Capacitor Android
 
 ## Funcionalidad
 
@@ -25,6 +26,22 @@ La app está pensada como una interfaz mobile-first, funciona offline y guarda t
 - Importar y exportar historial en JSON o ICS
 - Configurar idioma, tema y formato de fecha
 - Soporte offline y base PWA
+
+## Android
+
+La app incluye un shell nativo de Android con Capacitor en `android/`. La lógica del producto sigue en la app web de `src/`, y Android empaqueta la build generada en `dist/`.
+
+Comandos útiles:
+
+```bash
+npm run build:native
+npm run android:sync
+npm run android:run
+```
+
+Los assets de launcher y splash usados por Android están versionados en `assets/` y sus PNG generados en `android/app/src/main/res/`.
+
+Para mantener el repo público sin exponer credenciales, no se versionan archivos locales o sensibles como `android/local.properties`, `google-services.json` ni keystores de firma.
 
 ## Estructura general
 
