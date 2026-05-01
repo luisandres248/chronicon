@@ -1,8 +1,9 @@
 import React, { Suspense, lazy, useContext, useEffect, useMemo, useState } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { GlobalProvider, GlobalContext } from "./context/GlobalContext";
 import Sidebar from "./components/Sidebar";
+import PublicInfoPage from "./pages/PublicInfoPage";
 
 const Config = lazy(() => import("./pages/Config"));
 const EventsGrid = lazy(() => import("./components/EventsGrid"));
@@ -12,7 +13,9 @@ const ImportEventsPage = lazy(() => import("./pages/ImportEventsPage"));
 function AppContent() {
   const { config } = useContext(GlobalContext);
   const { t } = useTranslation();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const isPublicPage = ["/privacy", "/terms", "/support"].includes(location.pathname);
 
   const shellTheme = useMemo(() => `theme-${config?.theme || "chronicon"}`, [config?.theme]);
 
@@ -24,6 +27,16 @@ function AppContent() {
       document.body.classList.remove("theme-light", "theme-dark");
     };
   }, [shellTheme]);
+
+  if (isPublicPage) {
+    return (
+      <Routes>
+        <Route path="/privacy" element={<PublicInfoPage page="privacy" />} />
+        <Route path="/terms" element={<PublicInfoPage page="terms" />} />
+        <Route path="/support" element={<PublicInfoPage page="support" />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className={`app-shell ${shellTheme} ${sidebarOpen ? "app-shell--sidebar-open" : ""}`}>
