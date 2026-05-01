@@ -684,6 +684,7 @@ textarea {
 .event-form-dialog__body {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   gap: 18px;
   margin-top: 10px;
   padding: 0 20px 8px;
@@ -712,6 +713,7 @@ textarea {
 }
 
 .event-form-dialog__actions {
+  flex: 0 0 auto;
   justify-content: center;
   padding: 14px 20px 20px;
 }
@@ -1153,20 +1155,35 @@ textarea {
     calc(20px + var(--safe-bottom))
     calc(20px + var(--safe-left));
   background: rgba(0, 0, 0, 0.42);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .simple-dialog {
   width: min(100%, 420px);
+  max-height: calc(100dvh - 40px - var(--safe-top) - var(--safe-bottom));
   border: 2px solid var(--border);
   background: var(--panel);
   box-shadow: var(--shadow);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .event-form-panel {
   width: min(100%, 560px);
+  max-height: calc(100dvh - 40px - var(--safe-top) - var(--safe-bottom));
   border: 2px solid var(--border);
   background: var(--panel);
   box-shadow: var(--shadow);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.event-form-panel form {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
 .simple-dialog__header {
@@ -1546,11 +1563,17 @@ textarea {
   }
 
   .modal-overlay {
+    align-items: flex-start;
     padding:
       calc(12px + var(--safe-top))
       calc(12px + var(--safe-right))
       calc(12px + var(--safe-bottom))
       calc(12px + var(--safe-left));
+  }
+
+  .simple-dialog,
+  .event-form-panel {
+    max-height: calc(100dvh - 24px - var(--safe-top) - var(--safe-bottom));
   }
 
   .simple-dialog__actions {
