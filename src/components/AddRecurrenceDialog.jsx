@@ -15,11 +15,13 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
   const dateFormat = normalizeDateFormat(config?.dateFormat);
   const [recurrenceDate, setRecurrenceDate] = useState(toConfiguredDateValue(initialDate || new Date(), dateFormat, i18n.language));
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setRecurrenceDate(toConfiguredDateValue(initialDate || new Date(), dateFormat, i18n.language));
       setError("");
+      setSaving(false);
     }
   }, [open, initialDate, dateFormat, i18n.language]);
 
@@ -40,17 +42,27 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
     return null;
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const parsedDate = parseDate(recurrenceDate, dateFormat, i18n.language);
     if (!parsedDate) {
       setError(t("invalidStartDate"));
       return;
     }
 
-    if (onSubmit) {
-      onSubmit(eventToRecur, parsedDate);
+    if (!onSubmit) {
+      onClose();
+      return;
     }
-    onClose();
+
+    setSaving(true);
+    try {
+      await onSubmit(eventToRecur, parsedDate);
+      onClose();
+    } catch (submitError) {
+      setError(submitError?.message || t("createRecurrenceError"));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -86,7 +98,7 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
           <button type="button" className="chronicon-button chronicon-button--ghost" onClick={onClose}>
             {t("cancelButton")}
           </button>
-          <button type="button" className="chronicon-button" onClick={handleSave} disabled={!recurrenceDate}>
+          <button type="button" className="chronicon-button" onClick={handleSave} disabled={!recurrenceDate || saving}>
             {t("saveButton")}
           </button>
         </div>

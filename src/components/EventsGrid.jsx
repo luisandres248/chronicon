@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useContext, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
+import { getUniqueOccurrencesByDay } from "../services/eventService";
 import AppHeader from "./AppHeader";
 import { formatDate } from "../utils/dateFormatter";
 import { PencilIcon, PlusIcon, TrashIcon } from "./icons";
@@ -51,16 +52,17 @@ function EventsGrid() {
     return [...groups.values()]
       .map((seriesEvents) => {
         const ordered = [...seriesEvents].sort((a, b) => a.startDate - b.startDate);
-        const firstOccurrenceDate = ordered[0].startDate;
-        const lastOccurrenceDate = ordered[ordered.length - 1].startDate;
+        const uniqueOccurrences = getUniqueOccurrencesByDay(ordered);
+        const firstOccurrenceDate = (uniqueOccurrences[0] || ordered[0]).startDate;
+        const lastOccurrenceDate = (uniqueOccurrences[uniqueOccurrences.length - 1] || ordered[ordered.length - 1]).startDate;
         const averageGap =
-          ordered.length > 1
+          uniqueOccurrences.length > 1
             ? Math.round(
-                ordered.slice(1).reduce((total, occurrence, index) => {
-                  const previous = ordered[index].startDate;
+                uniqueOccurrences.slice(1).reduce((total, occurrence, index) => {
+                  const previous = uniqueOccurrences[index].startDate;
                   return total + Math.round((occurrence.startDate - previous) / (1000 * 60 * 60 * 24));
                 }, 0) /
-                  (ordered.length - 1)
+                  (uniqueOccurrences.length - 1)
               )
             : null;
 
@@ -74,7 +76,7 @@ function EventsGrid() {
           description: ordered[0].description,
           firstOccurrenceDate,
           lastOccurrenceDate,
-          recurrenceCount: ordered.length,
+          recurrenceCount: uniqueOccurrences.length,
           averageGapDays: averageGap,
           daysSinceFirst,
         };

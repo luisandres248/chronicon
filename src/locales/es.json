@@ -113,6 +113,7 @@
     "createEventError": "No se pudo crear el evento.",
     "missingEventId": "Falta el identificador del evento.",
     "occurrenceNotFound": "No se encontró la ocurrencia.",
+    "duplicateOccurrenceSameDay": "Ya existe una ocurrencia para ese día.",
     "updateEventError": "No se pudo actualizar el evento. Inténtalo de nuevo.",
     "deleteEventError": "No se pudo eliminar el evento. Inténtalo de nuevo.",
     "deleteOccurrenceError": "No se pudo eliminar la ocurrencia. Inténtalo de nuevo.",

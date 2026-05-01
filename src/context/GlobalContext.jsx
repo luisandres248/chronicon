@@ -79,6 +79,19 @@ export const GlobalProvider = ({ children }) => {
   const [processing, setProcessing] = useState(false); // CUD operations
   const [error, setError] = useState(null);
 
+  const ensureUniqueOccurrenceDay = useCallback((eventSeriesId, occurrenceDate, excludedOccurrenceId = null) => {
+    const seriesOccurrences = occurrences
+      .filter((item) => item.eventSeriesId === eventSeriesId)
+      .map((item) => ({
+        id: item.id,
+        startDate: item.occurrenceDate,
+      }));
+
+    if (eventService.hasOccurrenceOnSameDay(seriesOccurrences, occurrenceDate, excludedOccurrenceId)) {
+      throw eventService.createDuplicateOccurrenceDayError();
+    }
+  }, [occurrences]);
+
   const derivedEvents = useMemo(
     () => eventService.buildOccurrenceEvents(eventSeries, occurrences),
     [eventSeries, occurrences]
@@ -318,10 +331,14 @@ export const GlobalProvider = ({ children }) => {
       await localDb.putOccurrence(occurrenceRecord);
       setEventSeries((prev) => [...prev, eventService.parseEventSeriesRecord(seriesRecord)]);
       setOccurrences((prev) => [...prev, eventService.parseOccurrenceRecord(occurrenceRecord)]);
+      setError(null);
       logger.info("Event created successfully:", seriesRecord);
+      return true;
     } catch (err) {
       logger.error("Error creating event:", err);
-      setError(i18n.t("createEventError"));
+      const message = err?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? err.message : i18n.t("createEventError");
+      setError(message);
+      throw new Error(message);
     } finally {
       setProcessing(false);
     }
@@ -336,6 +353,14 @@ export const GlobalProvider = ({ children }) => {
 
     if (!occurrenceToUpdate) {
       throw new Error(i18n.t("occurrenceNotFound"));
+    }
+
+    try {
+      ensureUniqueOccurrenceDay(occurrenceToUpdate.eventSeriesId, formData.startDate, occurrenceToUpdate.id);
+    } catch (error) {
+      const message = error?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? error.message : i18n.t("updateEventError");
+      setError(message);
+      throw new Error(message);
     }
 
     const updatedSeriesRecord = eventService.createEventSeriesRecord({
@@ -360,13 +385,17 @@ export const GlobalProvider = ({ children }) => {
     try {
       await localDb.putEventSeries(updatedSeriesRecord);
       await localDb.putOccurrence(updatedOccurrenceRecord);
+      setError(null);
+      return true;
     } catch (error) {
       setEventSeries(originalSeries);
       setOccurrences(originalOccurrences);
-      setError(i18n.t("updateEventError"));
+      const message = error?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? error.message : i18n.t("updateEventError");
+      setError(message);
       logger.error("Rollback due to update error:", error);
+      throw new Error(message);
     }
-  }, [eventSeries, occurrences]);
+  }, [ensureUniqueOccurrenceDay, eventSeries, occurrences]);
 
   const handleDeleteEvent = useCallback(async (eventId) => {
     if (!eventId) throw new Error(i18n.t("missingEventId"));
@@ -425,21 +454,26 @@ export const GlobalProvider = ({ children }) => {
   const handleSaveRecurrence = useCallback(async (originalEvent, newDate) => {
     setProcessing(true);
     try {
+      ensureUniqueOccurrenceDay(originalEvent.eventSeriesId, newDate);
       const occurrenceRecord = eventService.createOccurrenceRecord({
         eventSeriesId: originalEvent.eventSeriesId,
         occurrenceDate: newDate,
       });
       await localDb.putOccurrence(occurrenceRecord);
       setOccurrences((prev) => [...prev, eventService.parseOccurrenceRecord(occurrenceRecord)]);
+      setError(null);
       logger.info("Recurrence created successfully:", occurrenceRecord);
+      return true;
     } catch (err) {
       logger.error("Error creating recurrence:", err);
-      setError(i18n.t("createRecurrenceError"));
+      const message = err?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? err.message : i18n.t("createRecurrenceError");
+      setError(message);
+      throw new Error(message);
     }
     finally {
       setProcessing(false);
     }
-  }, []);
+  }, [ensureUniqueOccurrenceDay]);
 
   const replaceAllEvents = useCallback(async (nextEvents) => {
     setProcessing(true);

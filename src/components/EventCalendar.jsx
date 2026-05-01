@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
-import { calculateEventStats } from "../services/eventService";
+import { calculateEventStats, getUniqueOccurrencesByDay } from "../services/eventService";
 import { formatDate } from "../utils/dateFormatter";
 import TemporalGrid from "./TemporalGrid";
 import { ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon } from "./icons";
@@ -51,11 +51,13 @@ function EventCalendar() {
     return [...groups.entries()]
       .map(([seriesId, seriesEvents]) => {
         const ordered = [...seriesEvents].sort((a, b) => a.startDate - b.startDate);
+        const uniqueOccurrences = getUniqueOccurrencesByDay(ordered);
         return {
           seriesId,
-          first: ordered[0],
-          latest: ordered[ordered.length - 1],
+          first: uniqueOccurrences[0] || ordered[0],
+          latest: uniqueOccurrences[uniqueOccurrences.length - 1] || ordered[ordered.length - 1],
           occurrences: ordered,
+          uniqueOccurrences,
         };
       })
       .sort((a, b) => b.latest.startDate - a.latest.startDate);
@@ -110,13 +112,13 @@ function EventCalendar() {
   }, [firstOccurrence, t]);
 
   const intervalValues = useMemo(() => {
-    if (!selectedSeries || selectedSeries.occurrences.length < 2) return [t("singleEvent")];
+    if (!selectedSeries || selectedSeries.uniqueOccurrences.length < 2) return [t("singleEvent")];
     const intervals = [];
-    for (let index = 1; index < selectedSeries.occurrences.length; index += 1) {
+    for (let index = 1; index < selectedSeries.uniqueOccurrences.length; index += 1) {
       intervals.push(
         differenceInDays(
-          selectedSeries.occurrences[index].startDate,
-          selectedSeries.occurrences[index - 1].startDate
+          selectedSeries.uniqueOccurrences[index].startDate,
+          selectedSeries.uniqueOccurrences[index - 1].startDate
         )
       );
     }
@@ -145,7 +147,7 @@ function EventCalendar() {
       hint: t("eventMetricHintPrimary"),
       onClick: () => setTimingMode((current) => current + 1),
     },
-    ...(selectedSeries && selectedSeries.occurrences.length > 1
+    ...(selectedSeries && selectedSeries.uniqueOccurrences.length > 1
       ? [
           {
             title: t("averageBetweenOccurrences"),
@@ -254,9 +256,9 @@ function EventCalendar() {
             </div>
             <div className="event-overview-card__item">
               <span>{t("occurrences")}</span>
-              <strong>{selectedSeries.occurrences.length}</strong>
+              <strong>{selectedSeries.uniqueOccurrences.length}</strong>
             </div>
-            {selectedSeries.occurrences.length > 1 ? (
+            {selectedSeries.uniqueOccurrences.length > 1 ? (
               <div className="event-overview-card__item">
                 <span>{t("lastTime")}</span>
                 <strong>{latestDateLabel}</strong>
@@ -291,7 +293,7 @@ function EventCalendar() {
         </div>
       </div>
 
-      <TemporalGrid occurrences={selectedSeries.occurrences} />
+      <TemporalGrid occurrences={selectedSeries.uniqueOccurrences} />
 
       {formOpen ? (
         <Suspense fallback={<div className="view-state">{t("loadingEvents")}</div>}>
@@ -318,7 +320,6 @@ function EventCalendar() {
             onClose={() => setRecurrenceOpen(false)}
             onSubmit={async (_, date) => {
               await handleSaveRecurrence(selectedSeries.latest, date);
-              setRecurrenceOpen(false);
             }}
             eventToRecur={selectedSeries.latest}
           />

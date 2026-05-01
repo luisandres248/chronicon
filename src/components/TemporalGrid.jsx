@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useContext } from "react";
 import { GlobalContext } from "../context/GlobalContext";
 import { formatDate, normalizeDateFormat } from "../utils/dateFormatter";
+import { getUniqueOccurrencesByDay } from "../services/eventService";
 
 const COLUMNS = 24;
 
@@ -11,7 +12,7 @@ function TemporalGrid({ occurrences = [] }) {
   const { t, i18n } = useTranslation();
   const { config } = useContext(GlobalContext);
   const dateFormat = normalizeDateFormat(config?.dateFormat);
-  const occurrenceDates = [...occurrences].sort((a, b) => a.startDate - b.startDate);
+  const occurrenceDates = getUniqueOccurrencesByDay(occurrences);
   const firstOccurrence = occurrenceDates[0] || null;
   const today = startOfDay(new Date());
   const firstDay = firstOccurrence ? startOfDay(firstOccurrence.startDate) : today;

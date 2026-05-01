@@ -113,6 +113,7 @@
     "createEventError": "Failed to create event.",
     "missingEventId": "Missing event ID.",
     "occurrenceNotFound": "Occurrence not found.",
+    "duplicateOccurrenceSameDay": "An occurrence already exists for that day.",
     "updateEventError": "Failed to update event. Please try again.",
     "deleteEventError": "Failed to delete event. Please try again.",
     "deleteOccurrenceError": "Failed to delete the occurrence. Please try again.",

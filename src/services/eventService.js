@@ -1,7 +1,8 @@
-import { differenceInDays, differenceInMonths, differenceInYears } from "date-fns";
+import { differenceInDays, differenceInMonths, differenceInYears, startOfDay } from "date-fns";
 import i18n from "../i18n";
 
 const DEFAULT_EVENT_DURATION = 60; // minutes
+export const DUPLICATE_OCCURRENCE_DAY_ERROR = "DUPLICATE_OCCURRENCE_DAY";
 
 export const LOCAL_EVENT_COLORS = {
   1: { background: "#A33E3E", foreground: "#FFFFFF" },
@@ -133,6 +134,47 @@ export const parseOccurrenceRecord = (record) => {
     endDate,
     createdAt: record.createdAt ? new Date(record.createdAt) : new Date(),
   };
+};
+
+export const getOccurrenceDayKey = (value) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return startOfDay(date).getTime();
+};
+
+export const getUniqueOccurrencesByDay = (occurrences = []) => {
+  const sorted = [...occurrences].sort((a, b) => a.startDate - b.startDate);
+  const seenDays = new Set();
+
+  return sorted.filter((occurrence) => {
+    const dayKey = getOccurrenceDayKey(occurrence.startDate);
+    if (dayKey === null || seenDays.has(dayKey)) {
+      return false;
+    }
+
+    seenDays.add(dayKey);
+    return true;
+  });
+};
+
+export const hasOccurrenceOnSameDay = (occurrences = [], candidateDate, excludedOccurrenceId = null) => {
+  const candidateDayKey = getOccurrenceDayKey(candidateDate);
+  if (candidateDayKey === null) {
+    return false;
+  }
+
+  return occurrences.some((occurrence) => (
+    occurrence.id !== excludedOccurrenceId && getOccurrenceDayKey(occurrence.startDate || occurrence.occurrenceDate) === candidateDayKey
+  ));
+};
+
+export const createDuplicateOccurrenceDayError = () => {
+  const error = new Error(i18n.t("duplicateOccurrenceSameDay"));
+  error.code = DUPLICATE_OCCURRENCE_DAY_ERROR;
+  return error;
 };
 
 export const createStoredEventRecord = ({
@@ -274,9 +316,9 @@ export const calculateEventStats = (event, allEvents) => {
     return null;
   }
 
-  const occurrences = allEvents
+  const occurrences = getUniqueOccurrencesByDay(allEvents
     .filter(e => (event.eventSeriesId ? e.eventSeriesId === event.eventSeriesId : e.name === event.name))
-    .sort((a, b) => a.startDate - b.startDate);
+  );
 
   if (!occurrences.length) return null;
 

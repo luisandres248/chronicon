@@ -102,7 +102,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
     }));
   };
 
-  const handleSubmit = (eventSubmit) => {
+  const handleSubmit = async (eventSubmit) => {
     eventSubmit.preventDefault();
 
     let currentTags = [...formData.tags];
@@ -130,7 +130,16 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
     };
 
     logger.info("Submitting form data:", cleanedFormData);
-    onSubmit(cleanedFormData);
+
+    try {
+      await onSubmit(cleanedFormData);
+    } catch (submitError) {
+      setErrors((current) => ({
+        ...current,
+        startDate: submitError?.message || t("updateEventError"),
+      }));
+      setSubmitting(false);
+    }
   };
 
   const handleDelete = () => {
@@ -194,7 +203,12 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
             <DateField
               label={t("startDateLabel")}
               value={formData.startDate}
-              onChange={(startDate) => setFormData({ ...formData, startDate })}
+              onChange={(startDate) => {
+                setFormData({ ...formData, startDate });
+                if (errors.startDate) {
+                  setErrors((current) => ({ ...current, startDate: "" }));
+                }
+              }}
               error={errors.startDate}
               disabled={submitting}
             />
