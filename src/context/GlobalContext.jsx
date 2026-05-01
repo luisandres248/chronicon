@@ -1,6 +1,8 @@
-import React, { createContext, useState, useEffect, useCallback, useMemo } from "react";
+import React, { createContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import * as eventService from "../services/eventService";
 import * as localDb from "../services/localDb";
+import { exportEventsToJson } from "../services/importExportService";
+import { isAutoBackupSupported, pickBackupDestination, writeBackupToDestination } from "../services/backupService";
 import logger from "../utils/logger.js";
 import i18n from "../i18n";
 import { normalizeDateFormat } from "../utils/dateFormatter";
@@ -8,6 +10,7 @@ import { normalizeDateFormat } from "../utils/dateFormatter";
 export const GlobalContext = createContext();
 
 const USER_CONFIG_STORAGE_KEY = "chronicon_user_config";
+const AUTO_BACKUP_STORAGE_KEY = "chronicon_auto_backup";
 
 const defaultConfig = {
   theme: "light",
@@ -15,7 +18,20 @@ const defaultConfig = {
   language: "en", // Add default language
 };
 
+const defaultAutoBackupConfig = {
+  enabled: false,
+  destinationUri: "",
+  destinationLabel: "",
+  lastBackupAt: null,
+  lastBackupError: "",
+};
+
 export const GlobalProvider = ({ children }) => {
+  const autoBackupTimerRef = useRef(null);
+  const pendingBackupPayloadRef = useRef(null);
+  const lastBackedUpPayloadRef = useRef(null);
+  const autoBackupHydratedRef = useRef(false);
+
   // Configuration state
   const [config, setConfig] = useState(() => {
     try {
@@ -38,6 +54,18 @@ export const GlobalProvider = ({ children }) => {
     }
     return defaultConfig;
   });
+  const [autoBackupConfig, setAutoBackupConfig] = useState(() => {
+    try {
+      const storedConfig = localStorage.getItem(AUTO_BACKUP_STORAGE_KEY);
+      if (storedConfig) {
+        return { ...defaultAutoBackupConfig, ...JSON.parse(storedConfig) };
+      }
+    } catch (error) {
+      logger.error("Error loading autobackup config:", error);
+    }
+    return defaultAutoBackupConfig;
+  });
+  const [autoBackupRunning, setAutoBackupRunning] = useState(false);
 
   // Core application state
   const [calendar] = useState({ id: "local-chronicon", summary: "Chronicon Offline" });
@@ -55,6 +83,110 @@ export const GlobalProvider = ({ children }) => {
     () => eventService.buildOccurrenceEvents(eventSeries, occurrences),
     [eventSeries, occurrences]
   );
+  const isNativeAutoBackupSupported = useMemo(() => isAutoBackupSupported(), []);
+  const exportedEventsJson = useMemo(() => exportEventsToJson(derivedEvents), [derivedEvents]);
+
+  const persistAutoBackupConfig = useCallback((nextValue) => {
+    setAutoBackupConfig((current) => {
+      const resolved = typeof nextValue === "function" ? nextValue(current) : nextValue;
+      try {
+        localStorage.setItem(AUTO_BACKUP_STORAGE_KEY, JSON.stringify(resolved));
+      } catch (error) {
+        logger.error("Error saving autobackup config:", error);
+      }
+      return resolved;
+    });
+  }, []);
+
+  const runAutoBackup = useCallback(async (payload = exportedEventsJson) => {
+    if (!isNativeAutoBackupSupported) {
+      throw new Error(i18n.t("autoBackupUnsupported"));
+    }
+
+    if (!autoBackupConfig.destinationUri) {
+      throw new Error(i18n.t("autoBackupDestinationMissing"));
+    }
+
+    if (autoBackupTimerRef.current) {
+      window.clearTimeout(autoBackupTimerRef.current);
+      autoBackupTimerRef.current = null;
+    }
+
+    pendingBackupPayloadRef.current = payload;
+    setAutoBackupRunning(true);
+
+    try {
+      await writeBackupToDestination(autoBackupConfig.destinationUri, payload);
+      const completedAt = new Date().toISOString();
+      lastBackedUpPayloadRef.current = payload;
+      pendingBackupPayloadRef.current = null;
+      persistAutoBackupConfig((current) => ({
+        ...current,
+        lastBackupAt: completedAt,
+        lastBackupError: "",
+      }));
+      return completedAt;
+    } catch (error) {
+      const message = error?.message || i18n.t("autoBackupWriteFailed");
+      persistAutoBackupConfig((current) => ({
+        ...current,
+        lastBackupError: message,
+      }));
+      throw error;
+    } finally {
+      setAutoBackupRunning(false);
+    }
+  }, [autoBackupConfig.destinationUri, exportedEventsJson, isNativeAutoBackupSupported, persistAutoBackupConfig]);
+
+  const chooseAutoBackupDestination = useCallback(async () => {
+    if (!isNativeAutoBackupSupported) {
+      throw new Error(i18n.t("autoBackupUnsupported"));
+    }
+
+    const result = await pickBackupDestination();
+    persistAutoBackupConfig((current) => ({
+      ...current,
+      destinationUri: result.uri,
+      destinationLabel: result.displayName || "chronicon-autobackup.json",
+      lastBackupError: "",
+    }));
+    return result;
+  }, [isNativeAutoBackupSupported, persistAutoBackupConfig]);
+
+  const setAutoBackupEnabled = useCallback(async (enabled) => {
+    if (!enabled) {
+      persistAutoBackupConfig((current) => ({
+        ...current,
+        enabled: false,
+      }));
+      return false;
+    }
+
+    let destinationUri = autoBackupConfig.destinationUri;
+    if (!destinationUri) {
+      const result = await chooseAutoBackupDestination();
+      destinationUri = result.uri;
+    }
+
+    persistAutoBackupConfig((current) => ({
+      ...current,
+      enabled: true,
+      destinationUri: destinationUri || current.destinationUri,
+    }));
+    await runAutoBackup(exportedEventsJson);
+    return true;
+  }, [autoBackupConfig.destinationUri, chooseAutoBackupDestination, exportedEventsJson, persistAutoBackupConfig, runAutoBackup]);
+
+  const clearAutoBackupDestination = useCallback(() => {
+    persistAutoBackupConfig((current) => ({
+      ...current,
+      enabled: false,
+      destinationUri: "",
+      destinationLabel: "",
+      lastBackupAt: null,
+      lastBackupError: "",
+    }));
+  }, [persistAutoBackupConfig]);
 
   const loadStructuredData = useCallback(async () => {
     const [storedSeries, storedOccurrences] = await Promise.all([
@@ -92,6 +224,74 @@ export const GlobalProvider = ({ children }) => {
     };
     initializeApp();
   }, [loadStructuredData]);
+
+  useEffect(() => {
+    if (appLoading) {
+      return undefined;
+    }
+
+    if (!autoBackupHydratedRef.current) {
+      autoBackupHydratedRef.current = true;
+      lastBackedUpPayloadRef.current = exportedEventsJson;
+      return undefined;
+    }
+
+    if (!isNativeAutoBackupSupported || !autoBackupConfig.enabled || !autoBackupConfig.destinationUri) {
+      return undefined;
+    }
+
+    if (exportedEventsJson === lastBackedUpPayloadRef.current) {
+      return undefined;
+    }
+
+    pendingBackupPayloadRef.current = exportedEventsJson;
+    if (autoBackupTimerRef.current) {
+      window.clearTimeout(autoBackupTimerRef.current);
+    }
+
+    autoBackupTimerRef.current = window.setTimeout(() => {
+      runAutoBackup(pendingBackupPayloadRef.current).catch((backupError) => {
+        logger.error("Automatic backup failed:", backupError);
+      });
+    }, 2500);
+
+    return () => {
+      if (autoBackupTimerRef.current) {
+        window.clearTimeout(autoBackupTimerRef.current);
+        autoBackupTimerRef.current = null;
+      }
+    };
+  }, [
+    appLoading,
+    autoBackupConfig.destinationUri,
+    autoBackupConfig.enabled,
+    exportedEventsJson,
+    isNativeAutoBackupSupported,
+    runAutoBackup,
+  ]);
+
+  useEffect(() => {
+    if (!isNativeAutoBackupSupported || !autoBackupConfig.enabled || !autoBackupConfig.destinationUri) {
+      return undefined;
+    }
+
+    const flushPendingBackup = () => {
+      if (document.visibilityState !== "hidden") {
+        return;
+      }
+
+      if (!pendingBackupPayloadRef.current || pendingBackupPayloadRef.current === lastBackedUpPayloadRef.current) {
+        return;
+      }
+
+      runAutoBackup(pendingBackupPayloadRef.current).catch((backupError) => {
+        logger.error("Automatic backup flush failed:", backupError);
+      });
+    };
+
+    document.addEventListener("visibilitychange", flushPendingBackup);
+    return () => document.removeEventListener("visibilitychange", flushPendingBackup);
+  }, [autoBackupConfig.destinationUri, autoBackupConfig.enabled, isNativeAutoBackupSupported, runAutoBackup]);
 
   const reloadEvents = useCallback(async () => {
     setEventsLoading(true);
@@ -314,8 +514,15 @@ export const GlobalProvider = ({ children }) => {
     eventsLoading,
     processing,
     error,
+    autoBackupConfig,
+    autoBackupRunning,
+    isAutoBackupSupported: isNativeAutoBackupSupported,
     // Methods
     updateConfig,
+    chooseAutoBackupDestination,
+    setAutoBackupEnabled,
+    clearAutoBackupDestination,
+    runAutoBackup,
     reloadEvents,
     replaceAllEvents,
     mergeImportedEvents,
