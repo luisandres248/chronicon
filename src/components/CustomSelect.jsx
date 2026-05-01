@@ -19,7 +19,7 @@ function CustomSelect({ label, value, onChange, options, containerClassName = ""
   const selectedOption = options.find((option) => option.value === value) || options[0];
 
   return (
-    <div className={`custom-select ${containerClassName}`.trim()} ref={rootRef}>
+    <div className={`custom-select ${open ? "custom-select--open" : ""} ${containerClassName}`.trim()} ref={rootRef}>
       {label ? <span className="setting-field__label">{label}</span> : null}
       <button
         type="button"

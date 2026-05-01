@@ -19,7 +19,7 @@ function ColorSelect({ label, value, onChange, options }) {
   const selectedOption = options.find((option) => option.value === value) || options[0];
 
   return (
-    <div className="custom-select" ref={rootRef}>
+    <div className={`custom-select ${open ? "custom-select--open" : ""}`.trim()} ref={rootRef}>
       <span className="setting-field__label">{label}</span>
       <button
         type="button"
