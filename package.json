@@ -10,7 +10,8 @@
     "cap:copy": "npx cap copy",
     "cap:sync": "npx cap sync",
     "android:sync": "npm run build:native && npx cap sync android",
-    "android:run": "npm run build:native && npx cap sync android && cd android && ./gradlew installDebug"
+    "android:run": "npm run build:native && npx cap sync android && cd android && ./gradlew installDebug",
+    "android:bundle": "npm run android:sync && cd android && ./gradlew bundleRelease"
   },
   "dependencies": {
     "@capacitor/android": "^7.6.0",
