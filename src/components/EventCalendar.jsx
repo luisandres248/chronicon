@@ -153,14 +153,14 @@ function EventCalendar() {
             hint: t("eventMetricHintAverage"),
             onClick: () => setIntervalMode((current) => current + 1),
           },
+          {
+            title: t("lastTime"),
+            value: cycleValue(sinceLastValues, sinceLastMode),
+            hint: t("eventMetricHintLast"),
+            onClick: () => setSinceLastMode((current) => current + 1),
+          },
         ]
       : []),
-    {
-      title: t("lastTime"),
-      value: cycleValue(sinceLastValues, sinceLastMode),
-      hint: t("eventMetricHintLast"),
-      onClick: () => setSinceLastMode((current) => current + 1),
-    },
   ];
 
   if (appLoading || eventsLoading || processing) {
@@ -256,10 +256,12 @@ function EventCalendar() {
               <span>{t("occurrences")}</span>
               <strong>{selectedSeries.occurrences.length}</strong>
             </div>
-            <div className="event-overview-card__item">
-              <span>{t("lastTime")}</span>
-              <strong>{latestDateLabel}</strong>
-            </div>
+            {selectedSeries.occurrences.length > 1 ? (
+              <div className="event-overview-card__item">
+                <span>{t("lastTime")}</span>
+                <strong>{latestDateLabel}</strong>
+              </div>
+            ) : null}
           </div>
           {firstOccurrence.tags?.length ? (
             <div className="event-tag-list">
