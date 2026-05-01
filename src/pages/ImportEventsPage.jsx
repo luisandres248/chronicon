@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { GlobalContext } from "../context/GlobalContext";
 import { groupEventsByName } from "../services/eventService";
 import {
@@ -84,6 +84,31 @@ function ImportEventsPage() {
     setGroupedEvents({});
     setSelectedGroupNames(new Set());
   };
+
+  useEffect(() => {
+    if (eventGroupsForDisplay.length === 0) {
+      return undefined;
+    }
+
+    const handleBackButton = (eventBack) => {
+      eventBack.preventDefault();
+      closeImportPreview();
+    };
+
+    const handleKeyDown = (eventKey) => {
+      if (eventKey.key === "Escape") {
+        closeImportPreview();
+      }
+    };
+
+    window.addEventListener("chronicon:back-button", handleBackButton);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("chronicon:back-button", handleBackButton);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [eventGroupsForDisplay.length, importing]);
 
   const handleFileImport = async (event, type) => {
     const file = event.target.files?.[0];

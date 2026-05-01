@@ -16,6 +16,7 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
   const [recurrenceDate, setRecurrenceDate] = useState(toConfiguredDateValue(initialDate || new Date(), dateFormat, i18n.language));
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const initialRecurrenceDate = toConfiguredDateValue(initialDate || new Date(), dateFormat, i18n.language);
 
   useEffect(() => {
     if (open) {
@@ -30,17 +31,43 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
 
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
-        onClose();
+        attemptClose();
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  }, [open, onClose, recurrenceDate, saving]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handleBackButton = (eventBack) => {
+      eventBack.preventDefault();
+      attemptClose();
+    };
+
+    window.addEventListener("chronicon:back-button", handleBackButton);
+    return () => window.removeEventListener("chronicon:back-button", handleBackButton);
+  }, [open, onClose, recurrenceDate, saving]);
 
   if (!open || !eventToRecur) {
     return null;
   }
+
+  const hasUnsavedChanges = recurrenceDate !== initialRecurrenceDate;
+
+  const attemptClose = () => {
+    if (saving) {
+      return;
+    }
+
+    if (hasUnsavedChanges && !window.confirm(t("confirmDiscardChanges"))) {
+      return;
+    }
+
+    onClose();
+  };
 
   const handleSave = async () => {
     const parsedDate = parseDate(recurrenceDate, dateFormat, i18n.language);
@@ -50,7 +77,7 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
     }
 
     if (!onSubmit) {
-      onClose();
+      attemptClose();
       return;
     }
 
@@ -66,7 +93,7 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
   };
 
   return (
-    <div className="modal-overlay" role="presentation" onClick={onClose}>
+    <div className="modal-overlay" role="presentation" onClick={attemptClose}>
       <div
         className="simple-dialog"
         role="dialog"
@@ -95,7 +122,7 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
           />
         </div>
         <div className="simple-dialog__actions">
-          <button type="button" className="chronicon-button chronicon-button--ghost" onClick={onClose}>
+          <button type="button" className="chronicon-button chronicon-button--ghost" onClick={attemptClose}>
             {t("cancelButton")}
           </button>
           <button type="button" className="chronicon-button" onClick={handleSave} disabled={!recurrenceDate || saving}>

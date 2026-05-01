@@ -27,6 +27,14 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
+  const initialFormData = {
+    name: event?.name || "",
+    startDate: toConfiguredDateValue(event?.startDate || new Date(), dateFormat, i18n.language),
+    description: event?.description || "",
+    colorId: event?.colorId || null,
+    tags: event?.tags || [],
+  };
+
   useEffect(() => {
     if (event) {
       logger.debug("Initializing form with event:", event);
@@ -56,17 +64,49 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
 
     const handleKeyDown = (eventKey) => {
       if (eventKey.key === "Escape") {
-        onClose();
+        attemptClose();
       }
     };
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  }, [open, onClose, formData, tagInput, submitting]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const handleBackButton = (eventBack) => {
+      eventBack.preventDefault();
+      attemptClose();
+    };
+
+    window.addEventListener("chronicon:back-button", handleBackButton);
+    return () => window.removeEventListener("chronicon:back-button", handleBackButton);
+  }, [open, onClose, formData, tagInput, submitting]);
 
   if (!open) {
     return null;
   }
+
+  const hasUnsavedChanges = () => {
+    if (tagInput.trim() !== "") {
+      return true;
+    }
+
+    return JSON.stringify(formData) !== JSON.stringify(initialFormData);
+  };
+
+  const attemptClose = () => {
+    if (submitting) {
+      return;
+    }
+
+    if (hasUnsavedChanges() && !window.confirm(t("confirmDiscardChanges"))) {
+      return;
+    }
+
+    onClose();
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -164,7 +204,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
   ];
 
   return (
-    <div className="modal-overlay" role="presentation" onClick={onClose}>
+    <div className="modal-overlay" role="presentation" onClick={attemptClose}>
       <div
         className="event-form-panel"
         role="dialog"
@@ -180,7 +220,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
             <button
               type="button"
               className="event-form-panel__close"
-              onClick={onClose}
+              onClick={attemptClose}
               disabled={submitting}
               aria-label={t("closeButton")}
             >

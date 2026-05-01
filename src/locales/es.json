@@ -42,6 +42,7 @@
     "expandMenu": "Expandir menú",
     "mainNavigation": "Navegación principal",
     "confirmDeleteEvent": "¿Estás seguro de que quieres eliminar el evento \"{{eventName}}\"?",
+    "confirmDiscardChanges": "Hay cambios sin guardar. ¿Quieres descartarlos?",
     "deleteButton": "Eliminar",
     "closeButton": "Cerrar",
     "cancelButton": "Cancelar",

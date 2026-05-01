@@ -1,5 +1,7 @@
 import React, { Suspense, lazy, useContext, useEffect, useMemo, useState } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { GlobalProvider, GlobalContext } from "./context/GlobalContext";
 import Sidebar from "./components/Sidebar";
@@ -14,6 +16,7 @@ function AppContent() {
   const { config } = useContext(GlobalContext);
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const isPublicPage = ["/privacy", "/terms", "/support"].includes(location.pathname);
 
@@ -27,6 +30,52 @@ function AppContent() {
       document.body.classList.remove("theme-light", "theme-dark");
     };
   }, [shellTheme]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      return undefined;
+    }
+
+    let removeListener = null;
+
+    const registerBackButtonListener = async () => {
+      const listener = await CapacitorApp.addListener("backButton", () => {
+        if (sidebarOpen) {
+          setSidebarOpen(false);
+          return;
+        }
+
+        const modalBackEvent = new CustomEvent("chronicon:back-button", { cancelable: true });
+        window.dispatchEvent(modalBackEvent);
+        if (modalBackEvent.defaultPrevented) {
+          return;
+        }
+
+        if (location.pathname !== "/") {
+          if (window.history.length > 1) {
+            navigate(-1);
+          } else {
+            navigate("/", { replace: true });
+          }
+          return;
+        }
+
+        CapacitorApp.exitApp();
+      });
+
+      removeListener = () => {
+        listener.remove();
+      };
+    };
+
+    registerBackButtonListener();
+
+    return () => {
+      if (removeListener) {
+        removeListener();
+      }
+    };
+  }, [location.pathname, navigate, sidebarOpen]);
 
   if (isPublicPage) {
     return (
