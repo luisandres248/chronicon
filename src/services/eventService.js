@@ -3,6 +3,26 @@ import i18n from "../i18n";
 
 const DEFAULT_EVENT_DURATION = 60; // minutes
 export const DUPLICATE_OCCURRENCE_DAY_ERROR = "DUPLICATE_OCCURRENCE_DAY";
+export const EVENT_TYPES = {
+  ONE_TIME: "one_time",
+  SERIES: "series",
+};
+export const REMINDER_KINDS = {
+  ANNIVERSARY: "anniversary",
+  INTERVAL: "interval",
+  ONE_TIME: "one_time",
+};
+export const REMINDER_ANCHORS = {
+  FIRST: "first_occurrence",
+  LAST: "last_occurrence",
+};
+export const REMINDER_UNITS = {
+  DAYS: "days",
+  WEEKS: "weeks",
+  MONTHS: "months",
+  YEARS: "years",
+};
+export const DEFAULT_REMINDER_TIME = "09:00";
 
 export const LOCAL_EVENT_COLORS = {
   1: { background: "#A33E3E", foreground: "#FFFFFF" },
@@ -72,12 +92,58 @@ export const normalizeEventName = (value) => {
   return normalized || i18n.t("untitledEvent");
 };
 
+export const normalizeEventType = (value) => (
+  value === EVENT_TYPES.ONE_TIME ? EVENT_TYPES.ONE_TIME : EVENT_TYPES.SERIES
+);
+
+export const normalizeReminderTime = (value) => (
+  /^\d{2}:\d{2}$/.test(value || "") ? value : DEFAULT_REMINDER_TIME
+);
+
+export const createReminderRuleRecord = ({
+  id,
+  enabled = true,
+  kind = REMINDER_KINDS.INTERVAL,
+  anchor = REMINDER_ANCHORS.LAST,
+  unit = REMINDER_UNITS.DAYS,
+  value = 1,
+  timeOfDay = DEFAULT_REMINDER_TIME,
+  at = null,
+}) => ({
+  id: id || crypto.randomUUID(),
+  enabled: enabled !== false,
+  kind: Object.values(REMINDER_KINDS).includes(kind) ? kind : REMINDER_KINDS.INTERVAL,
+  anchor: Object.values(REMINDER_ANCHORS).includes(anchor) ? anchor : REMINDER_ANCHORS.LAST,
+  unit: Object.values(REMINDER_UNITS).includes(unit) ? unit : REMINDER_UNITS.DAYS,
+  value: Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 1,
+  timeOfDay: normalizeReminderTime(timeOfDay),
+  at: at ? new Date(at).toISOString() : null,
+});
+
+export const parseReminderRuleRecord = (record) => {
+  if (!record) return null;
+
+  const normalized = createReminderRuleRecord(record);
+  if (normalized.kind === REMINDER_KINDS.ONE_TIME && normalized.at) {
+    const atDate = new Date(normalized.at);
+    if (Number.isNaN(atDate.getTime())) {
+      return null;
+    }
+  }
+
+  return normalized;
+};
+
+export const hasEnabledReminders = (reminders = []) => reminders.some((rule) => rule?.enabled);
+
 export const createEventSeriesRecord = ({
   id,
   name,
   description = "",
   colorId = null,
   tags = [],
+  eventType = EVENT_TYPES.SERIES,
+  reminders = [],
   createdAt = new Date(),
   updatedAt = new Date(),
 }) => ({
@@ -86,6 +152,8 @@ export const createEventSeriesRecord = ({
   description,
   colorId,
   tags,
+  eventType: normalizeEventType(eventType),
+  reminders: reminders.map(createReminderRuleRecord),
   createdAt: createdAt instanceof Date ? createdAt.toISOString() : new Date(createdAt).toISOString(),
   updatedAt: updatedAt instanceof Date ? updatedAt.toISOString() : new Date(updatedAt).toISOString(),
 });
@@ -99,6 +167,8 @@ export const parseEventSeriesRecord = (record) => {
     description: record.description || "",
     colorId: record.colorId || null,
     tags: Array.isArray(record.tags) ? record.tags : [],
+    eventType: normalizeEventType(record.eventType),
+    reminders: Array.isArray(record.reminders) ? record.reminders.map(parseReminderRuleRecord).filter(Boolean) : [],
     createdAt: record.createdAt ? new Date(record.createdAt) : new Date(),
     updatedAt: record.updatedAt ? new Date(record.updatedAt) : new Date(),
   };
@@ -246,6 +316,8 @@ export const buildOccurrenceEvents = (eventSeriesRecords, occurrenceRecords) => 
         description: series.description || "",
         colorId: series.colorId || null,
         tags: series.tags || [],
+        eventType: normalizeEventType(series.eventType),
+        reminders: series.reminders || [],
         recurringEventId: series.id,
         recurrence: null,
       };
@@ -276,6 +348,7 @@ export const convertLegacyEventsToSeriesModel = (legacyEvents) => {
       description: first.description || "",
       colorId: first.colorId || null,
       tags: first.tags || [],
+      eventType: groupedEvents.length > 1 ? EVENT_TYPES.SERIES : EVENT_TYPES.ONE_TIME,
     });
 
     eventSeries.push(series);

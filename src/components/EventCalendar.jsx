@@ -3,7 +3,8 @@ import { useLocation } from "react-router-dom";
 import { differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
-import { calculateEventStats, getUniqueOccurrencesByDay } from "../services/eventService";
+import { calculateEventStats, getUniqueOccurrencesByDay, hasEnabledReminders } from "../services/eventService";
+import { describeReminderRule } from "../services/reminderService";
 import { formatDate } from "../utils/dateFormatter";
 import TemporalGrid from "./TemporalGrid";
 import { ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon } from "./icons";
@@ -274,6 +275,15 @@ function EventCalendar() {
               ))}
             </div>
           ) : null}
+          {hasEnabledReminders(firstOccurrence.reminders || []) ? (
+            <div className="event-overview-card__reminders">
+              {(firstOccurrence.reminders || []).filter((rule) => rule.enabled).map((rule) => (
+                <div key={rule.id} className="event-form-field__helper">
+                  {describeReminderRule(rule, t)}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </article>
 
         {metrics.map((metric) => (
@@ -285,13 +295,15 @@ function EventCalendar() {
         ))}
       </div>
 
-      <div className="event-detail-actions">
-        <div className="event-detail-actions__buttons">
-          <button type="button" className="chronicon-button" onClick={() => setRecurrenceOpen(true)}>
-            {t("addOccurrence")}
-          </button>
+      {selectedSeries.first.eventType !== "one_time" ? (
+        <div className="event-detail-actions">
+          <div className="event-detail-actions__buttons">
+            <button type="button" className="chronicon-button" onClick={() => setRecurrenceOpen(true)}>
+              {t("addOccurrence")}
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <TemporalGrid occurrences={selectedSeries.uniqueOccurrences} />
 
@@ -305,6 +317,9 @@ function EventCalendar() {
               setFormOpen(false);
             }}
             event={selectedSeries.first}
+            seriesMeta={{
+              occurrenceCount: selectedSeries.uniqueOccurrences.length,
+            }}
             onDelete={async () => {
               await handleDeleteEvent(selectedSeries.first.id);
               setFormOpen(false);

@@ -3,6 +3,7 @@ import * as eventService from "../services/eventService";
 import * as localDb from "../services/localDb";
 import { exportEventsToJson } from "../services/importExportService";
 import { isAutoBackupSupported, pickBackupDestination, writeBackupToDestination } from "../services/backupService";
+import { isReminderSupported, syncScheduledReminders } from "../services/reminderService";
 import logger from "../utils/logger.js";
 import i18n from "../i18n";
 import { normalizeDateFormat } from "../utils/dateFormatter";
@@ -97,7 +98,21 @@ export const GlobalProvider = ({ children }) => {
     [eventSeries, occurrences]
   );
   const isNativeAutoBackupSupported = useMemo(() => isAutoBackupSupported(), []);
+  const isNativeReminderSupported = useMemo(() => isReminderSupported(), []);
   const exportedEventsJson = useMemo(() => exportEventsToJson(derivedEvents), [derivedEvents]);
+
+  const syncReminders = useCallback(async (nextSeries, nextOccurrences, options = {}) => {
+    if (!isNativeReminderSupported) {
+      return false;
+    }
+
+    try {
+      return await syncScheduledReminders(nextSeries, nextOccurrences, options);
+    } catch (reminderError) {
+      logger.error("Failed to sync local reminders:", reminderError);
+      return false;
+    }
+  }, [isNativeReminderSupported]);
 
   const persistAutoBackupConfig = useCallback((nextValue) => {
     setAutoBackupConfig((current) => {
@@ -109,7 +124,7 @@ export const GlobalProvider = ({ children }) => {
       }
       return resolved;
     });
-  }, []);
+  }, [syncReminders]);
 
   const runAutoBackup = useCallback(async (payload = exportedEventsJson) => {
     if (!isNativeAutoBackupSupported) {
@@ -306,6 +321,15 @@ export const GlobalProvider = ({ children }) => {
     return () => document.removeEventListener("visibilitychange", flushPendingBackup);
   }, [autoBackupConfig.destinationUri, autoBackupConfig.enabled, isNativeAutoBackupSupported, runAutoBackup]);
 
+  useEffect(() => {
+    if (appLoading || !isNativeReminderSupported) {
+      return undefined;
+    }
+
+    syncReminders(eventSeries, occurrences, { requestPermissions: false });
+    return undefined;
+  }, [appLoading, eventSeries, occurrences, isNativeReminderSupported, syncReminders]);
+
   const reloadEvents = useCallback(async () => {
     setEventsLoading(true);
     try {
@@ -327,11 +351,18 @@ export const GlobalProvider = ({ children }) => {
         eventSeriesId: seriesRecord.id,
         occurrenceDate: formData.startDate,
       });
+      const parsedSeries = eventService.parseEventSeriesRecord(seriesRecord);
+      const parsedOccurrence = eventService.parseOccurrenceRecord(occurrenceRecord);
       await localDb.putEventSeries(seriesRecord);
       await localDb.putOccurrence(occurrenceRecord);
-      setEventSeries((prev) => [...prev, eventService.parseEventSeriesRecord(seriesRecord)]);
-      setOccurrences((prev) => [...prev, eventService.parseOccurrenceRecord(occurrenceRecord)]);
+      const nextSeries = [...eventSeries, parsedSeries];
+      const nextOccurrences = [...occurrences, parsedOccurrence];
+      setEventSeries(nextSeries);
+      setOccurrences(nextOccurrences);
       setError(null);
+      if (eventService.hasEnabledReminders(parsedSeries.reminders)) {
+        await syncReminders(nextSeries, nextOccurrences, { requestPermissions: true });
+      }
       logger.info("Event created successfully:", seriesRecord);
       return true;
     } catch (err) {
@@ -342,7 +373,7 @@ export const GlobalProvider = ({ children }) => {
     } finally {
       setProcessing(false);
     }
-  }, []);
+  }, [eventSeries, occurrences, syncReminders]);
 
   const handleUpdateEvent = useCallback(async (eventId, formData) => {
     if (!eventId) throw new Error(i18n.t("missingEventId"));
@@ -355,13 +386,20 @@ export const GlobalProvider = ({ children }) => {
       throw new Error(i18n.t("occurrenceNotFound"));
     }
 
-    try {
-      ensureUniqueOccurrenceDay(occurrenceToUpdate.eventSeriesId, formData.startDate, occurrenceToUpdate.id);
-    } catch (error) {
-      const message = error?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? error.message : i18n.t("updateEventError");
-      setError(message);
-      throw new Error(message);
+    if (formData.eventType !== eventService.EVENT_TYPES.ONE_TIME) {
+      try {
+        ensureUniqueOccurrenceDay(occurrenceToUpdate.eventSeriesId, formData.startDate, occurrenceToUpdate.id);
+      } catch (error) {
+        const message = error?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? error.message : i18n.t("updateEventError");
+        setError(message);
+        throw new Error(message);
+      }
     }
+
+    const seriesOccurrences = occurrences.filter((item) => item.eventSeriesId === occurrenceToUpdate.eventSeriesId);
+    const extraOccurrenceIds = formData.eventType === eventService.EVENT_TYPES.ONE_TIME
+      ? seriesOccurrences.filter((item) => item.id !== occurrenceToUpdate.id).map((item) => item.id)
+      : [];
 
     const updatedSeriesRecord = eventService.createEventSeriesRecord({
       ...eventSeries.find((item) => item.id === occurrenceToUpdate.eventSeriesId),
@@ -378,14 +416,24 @@ export const GlobalProvider = ({ children }) => {
 
     const parsedSeries = eventService.parseEventSeriesRecord(updatedSeriesRecord);
     const parsedOccurrence = eventService.parseOccurrenceRecord(updatedOccurrenceRecord);
+    const nextSeries = originalSeries.map((item) => (item.id === parsedSeries.id ? parsedSeries : item));
+    const nextOccurrences = originalOccurrences
+      .filter((item) => !extraOccurrenceIds.includes(item.id))
+      .map((item) => (item.id === parsedOccurrence.id ? parsedOccurrence : item));
 
-    setEventSeries((prev) => prev.map((item) => (item.id === parsedSeries.id ? parsedSeries : item)));
-    setOccurrences((prev) => prev.map((item) => (item.id === parsedOccurrence.id ? parsedOccurrence : item)));
+    setEventSeries(nextSeries);
+    setOccurrences(nextOccurrences);
 
     try {
       await localDb.putEventSeries(updatedSeriesRecord);
       await localDb.putOccurrence(updatedOccurrenceRecord);
+      if (extraOccurrenceIds.length > 0) {
+        await Promise.all(extraOccurrenceIds.map((occurrenceId) => localDb.deleteOccurrence(occurrenceId)));
+      }
       setError(null);
+      if (eventService.hasEnabledReminders(parsedSeries.reminders)) {
+        await syncReminders(nextSeries, nextOccurrences, { requestPermissions: true });
+      }
       return true;
     } catch (error) {
       setEventSeries(originalSeries);
@@ -395,7 +443,7 @@ export const GlobalProvider = ({ children }) => {
       logger.error("Rollback due to update error:", error);
       throw new Error(message);
     }
-  }, [ensureUniqueOccurrenceDay, eventSeries, occurrences]);
+  }, [ensureUniqueOccurrenceDay, eventSeries, occurrences, syncReminders]);
 
   const handleDeleteEvent = useCallback(async (eventId) => {
     if (!eventId) throw new Error(i18n.t("missingEventId"));
@@ -416,6 +464,7 @@ export const GlobalProvider = ({ children }) => {
     try {
       await localDb.deleteOccurrencesForSeries(occurrence.eventSeriesId);
       await localDb.deleteEventSeries(occurrence.eventSeriesId);
+      await syncReminders(nextSeries, nextOccurrences, { requestPermissions: false });
     } catch (error) {
       setEventSeries(originalSeries);
       setOccurrences(originalOccurrences);
@@ -443,6 +492,11 @@ export const GlobalProvider = ({ children }) => {
       if (remainingForSeries.length === 0) {
         await localDb.deleteEventSeries(targetOccurrence.eventSeriesId);
       }
+      const nextSeries = remainingForSeries.length === 0
+        ? originalSeries.filter((item) => item.id !== targetOccurrence.eventSeriesId)
+        : originalSeries;
+      const nextOccurrences = originalOccurrences.filter((item) => item.id !== eventId);
+      await syncReminders(nextSeries, nextOccurrences, { requestPermissions: false });
     } catch (error) {
       setEventSeries(originalSeries);
       setOccurrences(originalOccurrences);
@@ -454,14 +508,20 @@ export const GlobalProvider = ({ children }) => {
   const handleSaveRecurrence = useCallback(async (originalEvent, newDate) => {
     setProcessing(true);
     try {
+      if (originalEvent?.eventType === eventService.EVENT_TYPES.ONE_TIME) {
+        throw new Error(i18n.t("oneTimeEventRecurrenceDisabled"));
+      }
       ensureUniqueOccurrenceDay(originalEvent.eventSeriesId, newDate);
       const occurrenceRecord = eventService.createOccurrenceRecord({
         eventSeriesId: originalEvent.eventSeriesId,
         occurrenceDate: newDate,
       });
       await localDb.putOccurrence(occurrenceRecord);
-      setOccurrences((prev) => [...prev, eventService.parseOccurrenceRecord(occurrenceRecord)]);
+      const parsedOccurrence = eventService.parseOccurrenceRecord(occurrenceRecord);
+      const nextOccurrences = [...occurrences, parsedOccurrence];
+      setOccurrences(nextOccurrences);
       setError(null);
+      await syncReminders(eventSeries, nextOccurrences, { requestPermissions: false });
       logger.info("Recurrence created successfully:", occurrenceRecord);
       return true;
     } catch (err) {
@@ -473,7 +533,7 @@ export const GlobalProvider = ({ children }) => {
     finally {
       setProcessing(false);
     }
-  }, [ensureUniqueOccurrenceDay]);
+  }, [ensureUniqueOccurrenceDay, eventSeries, occurrences, syncReminders]);
 
   const replaceAllEvents = useCallback(async (nextEvents) => {
     setProcessing(true);
@@ -482,8 +542,11 @@ export const GlobalProvider = ({ children }) => {
       await localDb.clearAllData();
       await localDb.bulkPutEventSeries(converted.eventSeries);
       await localDb.bulkPutOccurrences(converted.occurrences);
-      setEventSeries(converted.eventSeries.map(eventService.parseEventSeriesRecord).filter(Boolean));
-      setOccurrences(converted.occurrences.map(eventService.parseOccurrenceRecord).filter(Boolean));
+      const nextSeries = converted.eventSeries.map(eventService.parseEventSeriesRecord).filter(Boolean);
+      const nextOccurrences = converted.occurrences.map(eventService.parseOccurrenceRecord).filter(Boolean);
+      setEventSeries(nextSeries);
+      setOccurrences(nextOccurrences);
+      await syncReminders(nextSeries, nextOccurrences, { requestPermissions: false });
     } catch (err) {
       logger.error("Error replacing events:", err);
       setError(i18n.t("replaceLocalEventsError"));
@@ -514,8 +577,13 @@ export const GlobalProvider = ({ children }) => {
       const converted = eventService.convertOccurrenceEventsToSeriesModel(uniqueEvents);
       await localDb.bulkPutEventSeries(converted.eventSeries);
       await localDb.bulkPutOccurrences(converted.occurrences);
-      setEventSeries((prev) => [...prev, ...converted.eventSeries.map(eventService.parseEventSeriesRecord).filter(Boolean)]);
-      setOccurrences((prev) => [...prev, ...converted.occurrences.map(eventService.parseOccurrenceRecord).filter(Boolean)]);
+      const parsedSeries = converted.eventSeries.map(eventService.parseEventSeriesRecord).filter(Boolean);
+      const parsedOccurrences = converted.occurrences.map(eventService.parseOccurrenceRecord).filter(Boolean);
+      const nextSeries = [...eventSeries, ...parsedSeries];
+      const nextOccurrences = [...occurrences, ...parsedOccurrences];
+      setEventSeries(nextSeries);
+      setOccurrences(nextOccurrences);
+      await syncReminders(nextSeries, nextOccurrences, { requestPermissions: false });
       return uniqueEvents.length;
     } catch (err) {
       logger.error("Error merging imported events:", err);
@@ -524,7 +592,7 @@ export const GlobalProvider = ({ children }) => {
     } finally {
       setProcessing(false);
     }
-  }, [derivedEvents]);
+  }, [derivedEvents, eventSeries, occurrences, syncReminders]);
 
   // --- CONFIGURATION MANAGEMENT ---
   const updateConfig = (newConfig) => {
@@ -556,6 +624,7 @@ export const GlobalProvider = ({ children }) => {
     autoBackupConfig,
     autoBackupRunning,
     isAutoBackupSupported: isNativeAutoBackupSupported,
+    isReminderSupported: isNativeReminderSupported,
     // Methods
     updateConfig,
     chooseAutoBackupDestination,
@@ -570,6 +639,7 @@ export const GlobalProvider = ({ children }) => {
     handleDeleteEvent,
     handleDeleteSingleOccurrence,
     handleSaveRecurrence,
+    syncReminders,
   };
 
   return (

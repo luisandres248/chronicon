@@ -1,5 +1,5 @@
 const DB_NAME = "chronicon-offline";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const LEGACY_EVENTS_STORE = "events";
 const EVENT_SERIES_STORE = "eventSeries";
 const OCCURRENCES_STORE = "occurrences";

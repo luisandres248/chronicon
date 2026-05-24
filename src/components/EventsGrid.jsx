@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useContext, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
+import { hasEnabledReminders } from "../services/eventService";
 import { getUniqueOccurrencesByDay } from "../services/eventService";
 import AppHeader from "./AppHeader";
 import { formatDate } from "../utils/dateFormatter";
@@ -11,8 +12,9 @@ const EventForm = lazy(() => import("./EventForm"));
 
 function getSeriesMeta(series, locale, formatPattern, t) {
   const firstDate = formatDate(series.firstOccurrenceDate, formatPattern, locale);
-  const recurrenceText =
-    series.recurrenceCount > 1
+  const recurrenceText = series.eventType === "one_time"
+    ? t("eventTypeOneTime")
+    : series.recurrenceCount > 1
       ? `${series.recurrenceCount} ${t("occurrences").toLowerCase()} · prom. ${series.averageGapDays} ${t("daysUnit")}`
       : `${series.daysSinceFirst} ${t("daysUnit")} ${t("sinceStart")}`;
 
@@ -79,6 +81,8 @@ function EventsGrid() {
           recurrenceCount: uniqueOccurrences.length,
           averageGapDays: averageGap,
           daysSinceFirst,
+          eventType: ordered[0].eventType || "one_time",
+          remindersEnabled: hasEnabledReminders(ordered[0].reminders || []),
         };
       })
       .sort((a, b) => b.lastOccurrenceDate - a.lastOccurrenceDate);
@@ -174,7 +178,10 @@ function EventsGrid() {
                   </div>
                 </div>
                 <div className="event-list-card__meta">{firstDate}</div>
-                <div className="event-list-card__submeta">{recurrenceText}</div>
+                <div className="event-list-card__submeta">
+                  {recurrenceText}
+                  {card.remindersEnabled ? ` · ${t("reminderEnabledBadge")}` : ""}
+                </div>
               </article>
             );
           })
@@ -203,6 +210,7 @@ function EventsGrid() {
             onClose={handleFormClose}
             onSubmit={handleFormSubmit}
             event={selectedEvent}
+            seriesMeta={selectedEvent ? seriesCards.find((card) => card.event.id === selectedEvent.id) : null}
             onDelete={selectedEvent ? () => handleDeleteFromForm(selectedEvent.id) : undefined}
           />
         </Suspense>

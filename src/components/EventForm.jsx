@@ -1,10 +1,18 @@
 import React, { useState, useEffect, useContext } from "react";
 import { GlobalContext } from "../context/GlobalContext";
 import { useTranslation } from "react-i18next";
+import {
+  createReminderRuleRecord,
+  DEFAULT_REMINDER_TIME,
+  EVENT_TYPES,
+} from "../services/eventService";
+import { describeReminderRule, REMINDER_PRESETS } from "../services/reminderService";
 import logger from "../utils/logger.js";
 import ColorSelect from "./ColorSelect";
+import CustomSelect from "./CustomSelect";
 import DateField from "./DateField";
-import { CloseIcon } from "./icons";
+import { CloseIcon, PencilIcon, TrashIcon } from "./icons";
+import ReminderRuleDialog from "./ReminderRuleDialog";
 import { formatDate, normalizeDateFormat, parseDate } from "../utils/dateFormatter";
 
 function toConfiguredDateValue(date, formatStr, locale) {
@@ -12,8 +20,25 @@ function toConfiguredDateValue(date, formatStr, locale) {
   return Number.isNaN(target.getTime()) ? "" : formatDate(target, formatStr, locale);
 }
 
-const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
-  const { calendarColors, loadingColors, config } = useContext(GlobalContext);
+function getReminderPresetLabel(presetId, t) {
+  switch (presetId) {
+    case "anniversary-7-days":
+      return t("reminderPreset7Days");
+    case "anniversary-30-days":
+      return t("reminderPreset30Days");
+    case "anniversary-6-months":
+      return t("reminderPreset6Months");
+    case "anniversary-1-year":
+      return t("reminderPreset1Year");
+    case "interval-monthly-last":
+      return t("reminderPresetMonthly");
+    default:
+      return presetId;
+  }
+}
+
+const EventForm = ({ open, onClose, onSubmit, event = null, onDelete, seriesMeta = null }) => {
+  const { calendarColors, loadingColors, config, isReminderSupported } = useContext(GlobalContext);
   const { t, i18n } = useTranslation();
   const dateFormat = normalizeDateFormat(config?.dateFormat);
   const [formData, setFormData] = useState({
@@ -22,10 +47,14 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
     description: "",
     colorId: null,
     tags: [],
+    eventType: EVENT_TYPES.ONE_TIME,
+    reminders: [],
   });
   const [tagInput, setTagInput] = useState("");
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const [editingReminderIndex, setEditingReminderIndex] = useState(null);
 
   const initialFormData = {
     name: event?.name || "",
@@ -33,6 +62,8 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
     description: event?.description || "",
     colorId: event?.colorId || null,
     tags: event?.tags || [],
+    eventType: event?.eventType || EVENT_TYPES.ONE_TIME,
+    reminders: event?.reminders || [],
   };
 
   useEffect(() => {
@@ -44,6 +75,8 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
         description: event.description || "",
         colorId: event.colorId || null,
         tags: event.tags || [],
+        eventType: event.eventType || EVENT_TYPES.ONE_TIME,
+        reminders: event.reminders || [],
       });
     } else {
       setFormData({
@@ -52,11 +85,15 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
         description: "",
         colorId: null,
         tags: [],
+        eventType: EVENT_TYPES.ONE_TIME,
+        reminders: [],
       });
     }
     setTagInput("");
     setErrors({});
     setSubmitting(false);
+    setReminderDialogOpen(false);
+    setEditingReminderIndex(null);
   }, [event, open, dateFormat, i18n.language]);
 
   useEffect(() => {
@@ -142,6 +179,53 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
     }));
   };
 
+  const addPresetReminder = (preset) => {
+    setFormData((current) => {
+      const exists = current.reminders.some((rule) => (
+        rule.kind === preset.kind &&
+        rule.anchor === preset.anchor &&
+        rule.unit === preset.unit &&
+        rule.value === preset.value &&
+        rule.timeOfDay === (preset.timeOfDay || DEFAULT_REMINDER_TIME) &&
+        rule.at === (preset.at || null)
+      ));
+
+      if (exists) {
+        return current;
+      }
+
+      return {
+        ...current,
+        reminders: [...current.reminders, createReminderRuleRecord({ ...preset, id: undefined })],
+      };
+    });
+  };
+
+  const handleSaveReminderRule = (nextRule) => {
+    setFormData((current) => {
+      const nextReminders = [...current.reminders];
+      if (editingReminderIndex === null) {
+        nextReminders.push(nextRule);
+      } else {
+        nextReminders[editingReminderIndex] = nextRule;
+      }
+
+      return {
+        ...current,
+        reminders: nextReminders,
+      };
+    });
+    setReminderDialogOpen(false);
+    setEditingReminderIndex(null);
+  };
+
+  const handleDeleteReminderRule = (indexToDelete) => {
+    setFormData((current) => ({
+      ...current,
+      reminders: current.reminders.filter((_, index) => index !== indexToDelete),
+    }));
+  };
+
   const handleSubmit = async (eventSubmit) => {
     eventSubmit.preventDefault();
 
@@ -167,11 +251,25 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
       description: formData.description?.trim() || "",
       colorId: formData.colorId,
       tags: currentTags.map((tag) => tag.trim()).filter((tag) => tag.length > 0),
+      eventType: formData.eventType,
+      reminders: formData.reminders.map((rule) => createReminderRuleRecord(rule)),
     };
 
     logger.info("Submitting form data:", cleanedFormData);
 
     try {
+      if (
+        event &&
+        event.eventType === EVENT_TYPES.SERIES &&
+        cleanedFormData.eventType === EVENT_TYPES.ONE_TIME &&
+        (seriesMeta?.occurrenceCount || 0) > 1
+      ) {
+        const confirmed = window.confirm(t("confirmConvertToOneTime"));
+        if (!confirmed) {
+          setSubmitting(false);
+          return;
+        }
+      }
       await onSubmit(cleanedFormData);
     } catch (submitError) {
       setErrors((current) => ({
@@ -201,6 +299,10 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
           borderColor: colorData.foreground,
         }))
       : []),
+  ];
+  const eventTypeOptions = [
+    { value: EVENT_TYPES.ONE_TIME, label: t("eventTypeOneTime") },
+    { value: EVENT_TYPES.SERIES, label: t("eventTypeSeries") },
   ];
 
   return (
@@ -265,6 +367,15 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
             </label>
 
             <div className="event-form-field">
+              <CustomSelect
+                label={t("eventTypeLabel")}
+                value={formData.eventType}
+                onChange={(nextValue) => setFormData({ ...formData, eventType: nextValue })}
+                options={eventTypeOptions}
+              />
+            </div>
+
+            <div className="event-form-field">
               <ColorSelect
                 label={t("eventColorLabel")}
                 value={formData.colorId || ""}
@@ -312,6 +423,72 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
                 </button>
               </div>
             </div>
+
+            <div className="event-form-dialog__reminders">
+              <div className="event-form-dialog__section-label">{t("reminderSectionTitle")}</div>
+              <p className="event-form-field__helper">
+                {isReminderSupported ? t("reminderSectionDescription") : t("reminderAndroidOnlyHint")}
+              </p>
+              <div className="event-form-dialog__preset-row">
+                {REMINDER_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className="chronicon-button chronicon-button--ghost"
+                    onClick={() => addPresetReminder(preset)}
+                    disabled={submitting}
+                  >
+                    {getReminderPresetLabel(preset.id, t)}
+                  </button>
+                ))}
+              </div>
+              <div className="event-form-dialog__reminder-list">
+                {formData.reminders.map((rule, index) => (
+                  <div key={rule.id} className="event-form-dialog__reminder-item">
+                    <div>
+                      <strong>{describeReminderRule(rule, t)}</strong>
+                    </div>
+                    <div className="event-list-card__actions">
+                      <button
+                        type="button"
+                        className="icon-action"
+                        onClick={() => {
+                          setEditingReminderIndex(index);
+                          setReminderDialogOpen(true);
+                        }}
+                        disabled={submitting}
+                        aria-label={t("editReminderTitle")}
+                      >
+                        <PencilIcon width="12" height="12" />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-action"
+                        onClick={() => handleDeleteReminderRule(index)}
+                        disabled={submitting}
+                        aria-label={t("deleteButton")}
+                      >
+                        <TrashIcon width="12" height="12" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {formData.reminders.length === 0 ? (
+                  <div className="event-form-field__helper">{t("reminderEmptyState")}</div>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                className="chronicon-button chronicon-button--ghost"
+                onClick={() => {
+                  setEditingReminderIndex(null);
+                  setReminderDialogOpen(true);
+                }}
+                disabled={submitting}
+              >
+                {t("addCustomReminder")}
+              </button>
+            </div>
           </div>
 
           <div className="event-form-dialog__actions">
@@ -328,6 +505,15 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete }) => {
           </div>
         </form>
       </div>
+      <ReminderRuleDialog
+        open={reminderDialogOpen}
+        onClose={() => {
+          setReminderDialogOpen(false);
+          setEditingReminderIndex(null);
+        }}
+        onSave={handleSaveReminderRule}
+        initialRule={editingReminderIndex === null ? null : formData.reminders[editingReminderIndex]}
+      />
     </div>
   );
 };

@@ -25,6 +25,10 @@
   --accent-soft: #4f7094;
   --accent-base: #6592c8;
   --accent-soft-base: #4f7094;
+  --danger: #ffb1a8;
+  --danger-strong: #ff8d82;
+  --success: #ffd3ad;
+  --success-strong: #f1b56d;
   --grid-base: rgba(95, 114, 137, 0.32);
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.34);
   --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.22);
@@ -571,7 +575,7 @@ textarea {
   padding: 6px 8px;
   border: 1px solid color-mix(in srgb, var(--card-accent, var(--accent)) 38%, transparent);
   background: color-mix(in srgb, var(--card-accent, var(--accent)) 12%, transparent);
-  color: color-mix(in srgb, var(--card-accent, var(--accent)) 70%, white);
+  color: color-mix(in srgb, var(--card-accent, var(--accent)) 60%, var(--ink));
   font-size: 0.74rem;
   line-height: 1;
   border-radius: 0;
@@ -617,7 +621,7 @@ textarea {
 .metric-card__value {
   font-family: "JetBrains Mono", monospace;
   font-size: 1.02rem;
-  color: #f3f7fb;
+  color: var(--ink);
 }
 
 .metric-card__hint {
@@ -681,7 +685,7 @@ textarea {
 
 .chronicon-button--danger {
   background: rgba(181, 63, 55, 0.08);
-  color: #ffb1a8;
+  color: var(--danger);
   border: 1px solid rgba(181, 63, 55, 0.35);
   box-shadow: none;
 }
@@ -790,6 +794,45 @@ textarea {
   display: flex;
   align-items: flex-end;
   gap: 10px;
+}
+
+.event-form-dialog__reminders {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.event-form-dialog__preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.event-form-dialog__preset-row .chronicon-button {
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
+.event-form-dialog__reminder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.event-form-dialog__reminder-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  background: var(--panel-soft);
+}
+
+.event-form-dialog__reminder-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .event-form-dialog__actions {
@@ -1001,7 +1044,7 @@ textarea {
 
 .date-field__calendar .rdp-selected .rdp-day_button {
   background: var(--accent-soft);
-  color: #f5f4f1;
+  color: var(--rail-ink);
 }
 
 .date-field__calendar .rdp-outside {
@@ -1264,7 +1307,7 @@ textarea {
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0)),
     var(--panel-alt);
   box-shadow: var(--shadow);
-  overflow: auto;
+  overflow: visible;
   -webkit-overflow-scrolling: touch;
   border-radius: 0;
   backdrop-filter: blur(18px);
@@ -1334,6 +1377,13 @@ textarea {
   padding: 0 20px 20px;
 }
 
+.event-overview-card__reminders {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+}
+
 .status-card {
   margin-top: 12px;
   padding: 10px;
@@ -1345,12 +1395,12 @@ textarea {
 
 .status-card--error {
   border-color: rgba(181, 63, 55, 0.35);
-  color: #ffb1a8;
+  color: var(--danger);
 }
 
 .status-card--success {
   border-color: rgba(217, 145, 72, 0.35);
-  color: #ffd3ad;
+  color: var(--success);
 }
 
 .import-panel {
@@ -1498,6 +1548,10 @@ textarea {
   --accent-soft: #5c84ad;
   --accent-base: #3d6f9f;
   --accent-soft-base: #5c84ad;
+  --danger: #9b3f37;
+  --danger-strong: #7f3029;
+  --success: #9a6429;
+  --success-strong: #7d4e1e;
   --grid-base: rgba(88, 106, 128, 0.22);
   --shadow: 0 24px 60px rgba(68, 86, 108, 0.16);
   --shadow-soft: 0 12px 32px rgba(68, 86, 108, 0.12);
@@ -1535,6 +1589,10 @@ textarea {
   --accent-soft: #53789f;
   --accent-base: #74a2d8;
   --accent-soft-base: #53789f;
+  --danger: #ffb1a8;
+  --danger-strong: #ff8d82;
+  --success: #ffd3ad;
+  --success-strong: #f1b56d;
   --grid-base: rgba(108, 128, 152, 0.34);
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
   --shadow-soft: 0 12px 32px rgba(0, 0, 0, 0.28);
@@ -1779,6 +1837,13 @@ textarea {
 
   .event-form-dialog__actions-row > * {
     width: 100%;
+  }
+
+  .event-form-dialog__tag-entry,
+  .event-form-dialog__reminder-grid,
+  .event-form-dialog__reminder-item {
+    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
   .sidebar .sidebar__label {

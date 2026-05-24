@@ -3,10 +3,15 @@ import {
   calculateEventStats,
   convertLegacyEventsToSeriesModel,
   createDuplicateOccurrenceDayError,
+  createEventSeriesRecord,
+  EVENT_TYPES,
   getUniqueOccurrencesByDay,
   hasOccurrenceOnSameDay,
   normalizeEventName,
+  parseEventSeriesRecord,
   parseStoredEvent,
+  REMINDER_KINDS,
+  REMINDER_UNITS,
 } from "./eventService";
 
 describe("eventService", () => {
@@ -82,7 +87,28 @@ describe("eventService", () => {
 
     expect(converted.eventSeries).toHaveLength(1);
     expect(converted.eventSeries[0].name).toBe("Meds");
+    expect(converted.eventSeries[0].eventType).toBe(EVENT_TYPES.SERIES);
     expect(converted.occurrences).toHaveLength(2);
+  });
+
+  it("normalizes series records with event type and reminders", () => {
+    const created = createEventSeriesRecord({
+      name: "Birthday",
+      eventType: EVENT_TYPES.ONE_TIME,
+      reminders: [
+        {
+          kind: REMINDER_KINDS.INTERVAL,
+          value: 30,
+          unit: REMINDER_UNITS.DAYS,
+        },
+      ],
+    });
+
+    const parsed = parseEventSeriesRecord(created);
+
+    expect(parsed.eventType).toBe(EVENT_TYPES.ONE_TIME);
+    expect(parsed.reminders).toHaveLength(1);
+    expect(parsed.reminders[0].timeOfDay).toBe("09:00");
   });
 
   it("creates a domain-specific duplicate-day error", () => {
