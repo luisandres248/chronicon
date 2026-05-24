@@ -496,11 +496,16 @@ export const GlobalProvider = ({ children }) => {
   const mergeImportedEvents = useCallback(async (nextEvents) => {
     setProcessing(true);
     try {
+      const buildDedupKey = (event) => {
+        const normalizedName = eventService.normalizeEventName(event?.name).toLocaleLowerCase();
+        const parsedDate = event?.startDate instanceof Date ? event.startDate : new Date(event?.startDate);
+        return `${normalizedName}__${parsedDate.toISOString().slice(0, 10)}`;
+      };
       const existingKeys = new Set(
-        derivedEvents.map((event) => `${event.name}__${event.startDate.toISOString().slice(0, 10)}`)
+        derivedEvents.map(buildDedupKey)
       );
       const uniqueEvents = nextEvents.filter(
-        (event) => !existingKeys.has(`${event.name}__${event.startDate.toISOString().slice(0, 10)}`)
+        (event) => !existingKeys.has(buildDedupKey(event))
       );
       if (uniqueEvents.length === 0) {
         return 0;

@@ -11,8 +11,11 @@ export const normalizeDateFormat = (formatStr) =>
   DATE_FORMAT_OPTIONS.includes(formatStr) ? formatStr : DATE_FORMAT_OPTIONS[0];
 
 export const formatDate = (date, formatStr, locale) => {
-  if (!date || !(date instanceof Date) || isNaN(date)) {
+  if (!date || !(date instanceof Date)) {
     return i18n.t("noDate");
+  }
+  if (Number.isNaN(date.getTime())) {
+    return i18n.t("invalidDate");
   }
   try {
     return format(date, normalizeDateFormat(formatStr), {

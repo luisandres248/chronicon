@@ -7,6 +7,7 @@
     "build": "vite build",
     "build:native": "VITE_CAPACITOR=true vite build",
     "preview": "vite preview",
+    "test": "vitest run",
     "cap:copy": "npx cap copy",
     "cap:sync": "npx cap sync",
     "android:sync": "npm run build:native && npx cap sync android",
@@ -30,6 +31,7 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.0",
     "vite": "^7.1.2",
-    "vite-plugin-pwa": "^1.2.0"
+    "vite-plugin-pwa": "^1.2.0",
+    "vitest": "^4.1.7"
   }
 }

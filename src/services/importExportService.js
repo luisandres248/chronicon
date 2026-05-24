@@ -1,13 +1,55 @@
 import { addDays, format } from "date-fns";
-import { createStoredEventRecord, parseStoredEvent } from "./eventService";
+import { createStoredEventRecord, normalizeEventName, parseStoredEvent } from "./eventService";
 import i18n from "../i18n";
 
-function padLine(value = "") {
-  return String(value).replace(/\n/g, "\\n");
+function escapeIcsText(value = "") {
+  return String(value)
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
 }
 
 function unescapeIcsText(value = "") {
-  return value.replace(/\\n/gi, "\n").replace(/\\,/g, ",").replace(/\\;/g, ";");
+  return value
+    .replace(/\\\\/g, "\\")
+    .replace(/\\n/gi, "\n")
+    .replace(/\\,/g, ",")
+    .replace(/\\;/g, ";");
+}
+
+function splitEscapedIcsList(value = "") {
+  const values = [];
+  let current = "";
+  let escaping = false;
+
+  for (const char of value) {
+    if (escaping) {
+      current += `\\${char}`;
+      escaping = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaping = true;
+      continue;
+    }
+
+    if (char === ",") {
+      values.push(current);
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (escaping) {
+    current += "\\";
+  }
+
+  values.push(current);
+  return values;
 }
 
 function parseIcsDate(value) {
@@ -18,6 +60,30 @@ function parseIcsDate(value) {
     const month = Number(cleaned.slice(4, 6)) - 1;
     const day = Number(cleaned.slice(6, 8));
     return new Date(year, month, day);
+  }
+
+  const compactDateTime = cleaned.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})(Z)?$/);
+  if (compactDateTime) {
+    const [, year, month, day, hour, minute, second, utcMarker] = compactDateTime;
+    if (utcMarker) {
+      return new Date(Date.UTC(
+        Number(year),
+        Number(month) - 1,
+        Number(day),
+        Number(hour),
+        Number(minute),
+        Number(second)
+      ));
+    }
+
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second)
+    );
   }
 
   const parsed = new Date(cleaned);
@@ -50,7 +116,12 @@ export function exportEventsToJson(events) {
 }
 
 export function importEventsFromJson(text) {
-  const parsed = JSON.parse(text);
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error(i18n.t("invalidJsonImportFormat"));
+  }
   const events = Array.isArray(parsed) ? parsed : parsed.events;
   if (!Array.isArray(events)) {
     throw new Error(i18n.t("invalidJsonImportFormat"));
@@ -79,12 +150,12 @@ export function exportEventsToIcs(events) {
       lines.push(`DTSTAMP:${formatUtcTimestamp(new Date())}`);
       lines.push(`DTSTART;VALUE=DATE:${dateValue}`);
       lines.push(`DTEND;VALUE=DATE:${nextDateValue}`);
-      lines.push(`SUMMARY:${padLine(event.name)}`);
+      lines.push(`SUMMARY:${escapeIcsText(normalizeEventName(event.name))}`);
       if (event.description) {
-        lines.push(`DESCRIPTION:${padLine(event.description)}`);
+        lines.push(`DESCRIPTION:${escapeIcsText(event.description)}`);
       }
       if (event.tags?.length) {
-        lines.push(`CATEGORIES:${event.tags.map(padLine).join(",")}`);
+        lines.push(`CATEGORIES:${event.tags.map(escapeIcsText).join(",")}`);
       }
       lines.push("END:VEVENT");
     });
@@ -116,13 +187,13 @@ export function importEventsFromIcs(text) {
       if (!startDate || !data.SUMMARY) return null;
 
       const tags = data.CATEGORIES
-        ? data.CATEGORIES.split(",").map((tag) => unescapeIcsText(tag.trim())).filter(Boolean)
+        ? splitEscapedIcsList(data.CATEGORIES).map((tag) => unescapeIcsText(tag.trim())).filter(Boolean)
         : [];
 
       return parseStoredEvent(
         createStoredEventRecord({
           id: crypto.randomUUID(),
-          name: unescapeIcsText(data.SUMMARY),
+          name: normalizeEventName(unescapeIcsText(data.SUMMARY)),
           startDate,
           endDate: addDays(startDate, 1),
           description: unescapeIcsText(data.DESCRIPTION || ""),

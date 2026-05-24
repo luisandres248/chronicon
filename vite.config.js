@@ -33,6 +33,10 @@ export default defineConfig(() => {
 
   return {
     plugins,
+    test: {
+      environment: "node",
+      setupFiles: "./src/test/setup.js",
+    },
     build: {
       rollupOptions: {
         output: {

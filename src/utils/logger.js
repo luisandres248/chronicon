@@ -6,14 +6,17 @@ const LOG_LEVELS = {
   DEBUG: 4,
 };
 
+const getGlobalWindow = () => (typeof window !== "undefined" ? window : globalThis);
+const getStorage = () => (typeof sessionStorage !== "undefined" ? sessionStorage : null);
+
 const getLogLevel = () => {
   // Priority: Manual override > sessionStorage > environment default
-  const manualOverride = window.CHRONICON_LOG_LEVEL;
+  const manualOverride = getGlobalWindow().CHRONICON_LOG_LEVEL;
   if (manualOverride && LOG_LEVELS[manualOverride.toUpperCase()] !== undefined) {
     return LOG_LEVELS[manualOverride.toUpperCase()];
   }
 
-  const storedLevel = sessionStorage.getItem('chronicon_log_level');
+  const storedLevel = getStorage()?.getItem("chronicon_log_level");
   if (storedLevel && LOG_LEVELS[storedLevel.toUpperCase()] !== undefined) {
     return LOG_LEVELS[storedLevel.toUpperCase()];
   }
@@ -43,14 +46,14 @@ const logger = {
 };
 
 // Expose a global function to change the log level manually from the console
-window.setLogLevel = (levelName) => {
+getGlobalWindow().setLogLevel = (levelName) => {
   const newLevel = levelName.toUpperCase();
   if (LOG_LEVELS[newLevel] !== undefined) {
     currentLogLevel = LOG_LEVELS[newLevel];
-    sessionStorage.setItem('chronicon_log_level', newLevel);
+    getStorage()?.setItem("chronicon_log_level", newLevel);
     console.log(`Log level set to ${newLevel}`);
   } else {
-    console.warn(`Invalid log level. Use one of: ${Object.keys(LOG_LEVELS).join(', ')}`);
+    console.warn(`Invalid log level. Use one of: ${Object.keys(LOG_LEVELS).join(", ")}`);
   }
 };
 

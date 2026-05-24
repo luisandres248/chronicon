@@ -67,6 +67,11 @@ export const createEventObject = ({
   return eventObject;
 };
 
+export const normalizeEventName = (value) => {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return normalized || i18n.t("untitledEvent");
+};
+
 export const createEventSeriesRecord = ({
   id,
   name,
@@ -77,7 +82,7 @@ export const createEventSeriesRecord = ({
   updatedAt = new Date(),
 }) => ({
   id: id || crypto.randomUUID(),
-  name: name || i18n.t("untitledEvent"),
+  name: normalizeEventName(name),
   description,
   colorId,
   tags,
@@ -90,7 +95,7 @@ export const parseEventSeriesRecord = (record) => {
 
   return {
     id: record.id || crypto.randomUUID(),
-    name: record.name || i18n.t("untitledEvent"),
+    name: normalizeEventName(record.name),
     description: record.description || "",
     colorId: record.colorId || null,
     tags: Array.isArray(record.tags) ? record.tags : [],
@@ -189,7 +194,7 @@ export const createStoredEventRecord = ({
   recurrence = null,
 }) => ({
   id: id || crypto.randomUUID(),
-  name: name || i18n.t("untitledEvent"),
+  name: normalizeEventName(name),
   startDate: startDate instanceof Date ? startDate.toISOString() : new Date(startDate).toISOString(),
   endDate: endDate instanceof Date
     ? endDate.toISOString()
@@ -213,7 +218,7 @@ export const parseStoredEvent = (event) => {
 
   return {
     id: event.id || crypto.randomUUID(),
-    name: event.name || i18n.t("untitledEvent"),
+    name: normalizeEventName(event.name),
     startDate,
     endDate,
     description: event.description || "",
@@ -255,7 +260,7 @@ export const convertLegacyEventsToSeriesModel = (legacyEvents) => {
   legacyEvents.forEach((event) => {
     const parsed = parseStoredEvent(event);
     if (!parsed) return;
-    const key = parsed.name.trim() || i18n.t("untitledEvent");
+    const key = normalizeEventName(parsed.name);
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(parsed);
   });
@@ -296,7 +301,7 @@ export const groupEventsByName = (events) => {
   if (!events || !Array.isArray(events)) return {};
 
   const eventsByName = events.reduce((acc, event) => {
-    const name = event.name;
+    const name = normalizeEventName(event?.name);
     if (!acc[name]) {
       acc[name] = [];
     }

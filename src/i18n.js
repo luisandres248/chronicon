@@ -9,7 +9,9 @@ const USER_CONFIG_STORAGE_KEY = "chronicon_user_config";
 
 let initialLanguage = 'en'; // Default fallback
 try {
-  const storedConfig = localStorage.getItem(USER_CONFIG_STORAGE_KEY);
+  const storedConfig = typeof localStorage !== "undefined"
+    ? localStorage.getItem(USER_CONFIG_STORAGE_KEY)
+    : null;
   if (storedConfig) {
     const parsedConfig = JSON.parse(storedConfig);
     if (parsedConfig.language) {
