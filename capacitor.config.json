@@ -1,5 +1,11 @@
 {
   "appId": "com.chronicon.app",
   "appName": "Chronicon",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_chronicon",
+      "iconColor": "#3d6f9f"
+    }
+  }
 }
