@@ -20,23 +20,6 @@ function toConfiguredDateValue(date, formatStr, locale) {
   return Number.isNaN(target.getTime()) ? "" : formatDate(target, formatStr, locale);
 }
 
-function getReminderPresetLabel(presetId, t) {
-  switch (presetId) {
-    case "anniversary-7-days":
-      return t("reminderPreset7Days");
-    case "anniversary-30-days":
-      return t("reminderPreset30Days");
-    case "anniversary-6-months":
-      return t("reminderPreset6Months");
-    case "anniversary-1-year":
-      return t("reminderPreset1Year");
-    case "interval-monthly-last":
-      return t("reminderPresetMonthly");
-    default:
-      return presetId;
-  }
-}
-
 const EventForm = ({ open, onClose, onSubmit, event = null, onDelete, seriesMeta = null }) => {
   const { calendarColors, loadingColors, config, isReminderSupported } = useContext(GlobalContext);
   const { t, i18n } = useTranslation();
@@ -55,6 +38,8 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete, seriesMeta
   const [submitting, setSubmitting] = useState(false);
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
   const [editingReminderIndex, setEditingReminderIndex] = useState(null);
+  const intervalPresets = REMINDER_PRESETS.filter((preset) => preset.category === "interval");
+  const anniversaryPresets = REMINDER_PRESETS.filter((preset) => preset.category === "anniversary");
 
   const initialFormData = {
     name: event?.name || "",
@@ -387,16 +372,18 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete, seriesMeta
 
             <div>
               <div className="event-form-dialog__section-label">{t("tagsLabel")}</div>
-              <div className="event-form-dialog__tags">
-                {formData.tags.map((tag) => (
-                  <span key={tag} className="event-form-tag">
-                    <span>{tag}</span>
-                    <button type="button" onClick={() => handleRemoveTag(tag)} disabled={submitting} aria-label={`${t("deleteButton")}: ${tag}`}>
-                      <CloseIcon width="12" height="12" />
-                    </button>
-                  </span>
-                ))}
-              </div>
+              {formData.tags.length > 0 ? (
+                <div className="event-form-dialog__tags">
+                  {formData.tags.map((tag) => (
+                    <span key={tag} className="event-form-tag">
+                      <span>{tag}</span>
+                      <button type="button" onClick={() => handleRemoveTag(tag)} disabled={submitting} aria-label={`${t("deleteButton")}: ${tag}`}>
+                        <CloseIcon width="12" height="12" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <div className="event-form-dialog__tag-entry">
                 <label className="event-form-field event-form-field--grow">
                   <span className="setting-field__label">{t("addTagLabel")}</span>
@@ -430,17 +417,40 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete, seriesMeta
                 {isReminderSupported ? t("reminderSectionDescription") : t("reminderAndroidOnlyHint")}
               </p>
               <div className="event-form-dialog__preset-row">
-                {REMINDER_PRESETS.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    className="chronicon-button chronicon-button--ghost"
-                    onClick={() => addPresetReminder(preset)}
-                    disabled={submitting}
-                  >
-                    {getReminderPresetLabel(preset.id, t)}
-                  </button>
-                ))}
+                <div className="event-form-dialog__preset-group">
+                  <div className="event-form-dialog__section-label">{t("reminderPresetPeriodicTitle")}</div>
+                  <div className="event-form-dialog__preset-buttons">
+                    {intervalPresets.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className="chronicon-button chronicon-button--ghost"
+                        onClick={() => addPresetReminder(preset)}
+                        disabled={submitting}
+                      >
+                        {t(preset.labelKey)}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="event-form-field__helper">{t("reminderPresetPeriodicHint")}</p>
+                </div>
+                <div className="event-form-dialog__preset-group">
+                  <div className="event-form-dialog__section-label">{t("reminderPresetMilestoneTitle")}</div>
+                  <div className="event-form-dialog__preset-buttons">
+                    {anniversaryPresets.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className="chronicon-button chronicon-button--ghost"
+                        onClick={() => addPresetReminder(preset)}
+                        disabled={submitting}
+                      >
+                        {t(preset.labelKey)}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="event-form-field__helper">{t("reminderPresetMilestoneHint")}</p>
+                </div>
               </div>
               <div className="event-form-dialog__reminder-list">
                 {formData.reminders.map((rule, index) => (

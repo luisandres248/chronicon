@@ -72,6 +72,7 @@ function ReminderRuleDialog({ open, onClose, onSave, initialRule = null }) {
     { value: REMINDER_UNITS.MONTHS, label: t("reminderUnitmonths") },
     { value: REMINDER_UNITS.YEARS, label: t("reminderUnityears") },
   ];
+  const amountLabel = kind === REMINDER_KINDS.ANNIVERSARY ? t("reminderAfterLabel") : t("reminderEveryLabel");
 
   const handleSave = () => {
     const numericValue = Math.max(1, Number(value || 1));
@@ -169,7 +170,7 @@ function ReminderRuleDialog({ open, onClose, onSave, initialRule = null }) {
                 />
               </div>
               <label className="event-form-field">
-                <span className="setting-field__label">{t("reminderEveryLabel")}</span>
+                <span className="setting-field__label">{amountLabel}</span>
                 <input
                   className="event-form-field__input"
                   type="number"
