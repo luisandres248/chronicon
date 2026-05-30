@@ -2,8 +2,7 @@ import React, { Suspense, lazy, useContext, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
-import { hasEnabledReminders } from "../services/eventService";
-import { getUniqueOccurrencesByDay } from "../services/eventService";
+import { getUniqueOccurrencesByDay, hasEnabledReminders, matchesEventQuery } from "../services/eventService";
 import AppHeader from "./AppHeader";
 import { formatDate } from "../utils/dateFormatter";
 import { PencilIcon, PlusIcon, TrashIcon } from "./icons";
@@ -15,7 +14,7 @@ function getSeriesMeta(series, locale, formatPattern, t) {
   const recurrenceText = series.eventType === "one_time"
     ? t("eventTypeOneTime")
     : series.recurrenceCount > 1
-      ? `${series.recurrenceCount} ${t("occurrences").toLowerCase()} · prom. ${series.averageGapDays} ${t("daysUnit")}`
+      ? `${series.recurrenceCount} ${t("occurrences").toLowerCase()} · ${t("averageAbbrev")} ${series.averageGapDays} ${t("daysUnit")}`
       : `${series.daysSinceFirst} ${t("daysUnit")} ${t("sinceStart")}`;
 
   return { firstDate, recurrenceText };
@@ -40,6 +39,7 @@ function EventsGrid() {
   const navigate = useNavigate();
   const [formOpen, setFormOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const seriesCards = useMemo(() => {
     const groups = new Map();
@@ -76,6 +76,7 @@ function EventsGrid() {
           event: ordered[0],
           name: ordered[0].name,
           description: ordered[0].description,
+          tags: ordered[0].tags || [],
           firstOccurrenceDate,
           lastOccurrenceDate,
           recurrenceCount: uniqueOccurrences.length,
@@ -87,6 +88,11 @@ function EventsGrid() {
       })
       .sort((a, b) => b.lastOccurrenceDate - a.lastOccurrenceDate);
   }, [events]);
+
+  const filteredSeriesCards = useMemo(
+    () => seriesCards.filter((card) => matchesEventQuery(card, searchQuery)),
+    [searchQuery, seriesCards]
+  );
 
   const handleFormClose = () => {
     setFormOpen(false);
@@ -127,9 +133,19 @@ function EventsGrid() {
     <section className="page-shell">
       <AppHeader />
 
+      <div className="search-field">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={t("searchEventsPlaceholder")}
+          aria-label={t("searchEventsPlaceholder")}
+        />
+      </div>
+
       <div className="card-list">
-        {seriesCards.length > 0 ? (
-          seriesCards.map((card) => {
+        {filteredSeriesCards.length > 0 ? (
+          filteredSeriesCards.map((card) => {
             const { firstDate, recurrenceText } = getSeriesMeta(card, i18n.language, config.dateFormat, t);
 
             return (
@@ -186,7 +202,9 @@ function EventsGrid() {
             );
           })
         ) : (
-          <div className="empty-card">{t("noEventsMessageComprehensive")}</div>
+          <div className="empty-card">
+            {searchQuery.trim() ? t("noSearchResultsMessage") : t("noEventsMessageComprehensive")}
+          </div>
         )}
       </div>
 

@@ -7,6 +7,7 @@ import {
   EVENT_TYPES,
   getUniqueOccurrencesByDay,
   hasOccurrenceOnSameDay,
+  matchesEventQuery,
   normalizeEventName,
   parseEventSeriesRecord,
   parseStoredEvent,
@@ -89,6 +90,19 @@ describe("eventService", () => {
     expect(converted.eventSeries[0].name).toBe("Meds");
     expect(converted.eventSeries[0].eventType).toBe(EVENT_TYPES.SERIES);
     expect(converted.occurrences).toHaveLength(2);
+  });
+
+  it("matches event queries against name, description, and tags", () => {
+    const event = {
+      name: "Doctor appointment",
+      description: "Annual checkup",
+      tags: ["health", "personal"],
+    };
+
+    expect(matchesEventQuery(event, "doctor")).toBe(true);
+    expect(matchesEventQuery(event, "checkup")).toBe(true);
+    expect(matchesEventQuery(event, "health")).toBe(true);
+    expect(matchesEventQuery(event, "finance")).toBe(false);
   });
 
   it("normalizes series records with event type and reminders", () => {

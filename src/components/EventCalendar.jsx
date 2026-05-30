@@ -3,7 +3,7 @@ import { useLocation } from "react-router-dom";
 import { differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
-import { calculateEventStats, getUniqueOccurrencesByDay, hasEnabledReminders } from "../services/eventService";
+import { calculateEventStats, getUniqueOccurrencesByDay, hasEnabledReminders, matchesEventQuery } from "../services/eventService";
 import { describeReminderRule } from "../services/reminderService";
 import { formatDate } from "../utils/dateFormatter";
 import TemporalGrid from "./TemporalGrid";
@@ -39,6 +39,7 @@ function EventCalendar() {
   const [formOpen, setFormOpen] = useState(false);
   const [recurrenceOpen, setRecurrenceOpen] = useState(false);
   const [eventListOpen, setEventListOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const seriesList = useMemo(() => {
     const groups = new Map();
@@ -64,6 +65,11 @@ function EventCalendar() {
       .sort((a, b) => b.latest.startDate - a.latest.startDate);
   }, [events]);
 
+  const visibleSeriesList = useMemo(
+    () => seriesList.filter((series) => matchesEventQuery(series.first, searchQuery)),
+    [searchQuery, seriesList]
+  );
+
   useEffect(() => {
     if (!seriesList.length) {
       setSelectedSeriesId(null);
@@ -72,7 +78,7 @@ function EventCalendar() {
 
     const incomingId = location.state?.selectedEventId;
     if (incomingId) {
-      const matchingSeries = seriesList.find(
+      const matchingSeries = visibleSeriesList.find(
         (series) => series.occurrences.some((occurrence) => occurrence.id === incomingId)
       );
       if (matchingSeries) {
@@ -81,13 +87,24 @@ function EventCalendar() {
       }
     }
 
-    setSelectedSeriesId((current) => current || seriesList[0].seriesId);
-  }, [location.state, seriesList]);
+    if (!visibleSeriesList.length) {
+      setSelectedSeriesId(null);
+      return;
+    }
+
+    setSelectedSeriesId((current) => (
+      current && visibleSeriesList.some((series) => series.seriesId === current)
+        ? current
+        : visibleSeriesList[0].seriesId
+    ));
+  }, [location.state, seriesList, visibleSeriesList]);
 
   const selectedSeries = useMemo(
-    () => seriesList.find((series) => series.seriesId === selectedSeriesId) || seriesList[0] || null,
-    [selectedSeriesId, seriesList]
+    () => visibleSeriesList.find((series) => series.seriesId === selectedSeriesId) || visibleSeriesList[0] || null,
+    [selectedSeriesId, visibleSeriesList]
   );
+
+  const noMatchingResults = searchQuery.trim() && visibleSeriesList.length === 0;
 
   const stats = useMemo(
     () => (selectedSeries ? calculateEventStats(selectedSeries.latest, selectedSeries.occurrences) : null),
@@ -174,10 +191,6 @@ function EventCalendar() {
     return <div className="view-state">{error}</div>;
   }
 
-  if (!selectedSeries) {
-    return <div className="view-state">{t("selectEventToSeeStats")}</div>;
-  }
-
   return (
     <section
       className="page-shell page-shell--event"
@@ -197,16 +210,16 @@ function EventCalendar() {
             className="page-title-block__trigger"
             onClick={() => setEventListOpen((current) => !current)}
           >
-            <span>{selectedSeries.first.name}</span>
+            <span>{selectedSeries?.first?.name || t("selectEventToSeeStats")}</span>
             {eventListOpen ? <ChevronUpIcon width="20" height="20" /> : <ChevronDownIcon width="20" height="20" />}
           </button>
           {eventListOpen ? (
             <div className="event-selector__menu">
-              {seriesList.map((series) => (
+              {visibleSeriesList.map((series) => (
                 <button
                   key={series.seriesId}
                   type="button"
-                  className={`event-selector__option ${series.seriesId === selectedSeries.seriesId ? "event-selector__option--active" : ""}`}
+                  className={`event-selector__option ${series.seriesId === selectedSeries?.seriesId ? "event-selector__option--active" : ""}`}
                   onClick={() => {
                     setSelectedSeriesId(series.seriesId);
                     setEventListOpen(false);
@@ -220,7 +233,26 @@ function EventCalendar() {
         </div>
       </header>
 
-      <div className="card-list">
+      <div className="search-field">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={t("searchEventsPlaceholder")}
+          aria-label={t("searchEventsPlaceholder")}
+        />
+      </div>
+
+      {noMatchingResults ? (
+        <div className="view-state">{t("noSearchResultsMessage")}</div>
+      ) : null}
+
+      {!selectedSeries && !noMatchingResults ? (
+        <div className="view-state">{t("selectEventToSeeStats")}</div>
+      ) : null}
+
+      {selectedSeries ? (
+        <div className="card-list">
         <article className="event-list-card event-list-card--static event-overview-card">
           <div className="event-list-card__title-row">
             <div className="event-list-card__meta">
@@ -293,9 +325,10 @@ function EventCalendar() {
             <span className="metric-card__hint">{metric.hint}</span>
           </button>
         ))}
-      </div>
+        </div>
+      ) : null}
 
-      {selectedSeries.first.eventType !== "one_time" ? (
+      {selectedSeries && selectedSeries.first.eventType !== "one_time" ? (
         <div className="event-detail-actions">
           <div className="event-detail-actions__buttons">
             <button type="button" className="chronicon-button" onClick={() => setRecurrenceOpen(true)}>
@@ -305,9 +338,9 @@ function EventCalendar() {
         </div>
       ) : null}
 
-      <TemporalGrid occurrences={selectedSeries.uniqueOccurrences} />
+      {selectedSeries ? <TemporalGrid occurrences={selectedSeries.uniqueOccurrences} /> : null}
 
-      {formOpen ? (
+      {formOpen && selectedSeries ? (
         <Suspense fallback={<div className="view-state">{t("loadingEvents")}</div>}>
           <EventForm
             open={formOpen}
@@ -328,7 +361,7 @@ function EventCalendar() {
         </Suspense>
       ) : null}
 
-      {recurrenceOpen ? (
+      {recurrenceOpen && selectedSeries ? (
         <Suspense fallback={<div className="view-state">{t("loadingEvents")}</div>}>
           <AddRecurrenceDialog
             open={recurrenceOpen}

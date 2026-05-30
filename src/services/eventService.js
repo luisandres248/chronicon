@@ -389,6 +389,29 @@ export const groupEventsByName = (events) => {
   return eventsByName;
 };
 
+export const normalizeSearchQuery = (value) => (
+  typeof value === "string" ? value.trim().toLowerCase() : ""
+);
+
+export const matchesEventQuery = (event, query) => {
+  const normalizedQuery = normalizeSearchQuery(query);
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const searchableParts = [
+    event?.name,
+    event?.description,
+    ...(Array.isArray(event?.tags) ? event.tags : []),
+  ];
+
+  return searchableParts
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase()
+    .includes(normalizedQuery);
+};
+
 export const calculateEventStats = (event, allEvents) => {
   if (!event || !allEvents || !Array.isArray(allEvents)) {
     return null;

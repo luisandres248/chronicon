@@ -124,14 +124,14 @@ export const GlobalProvider = ({ children }) => {
       }
       return resolved;
     });
-  }, [syncReminders]);
+  }, []);
 
-  const runAutoBackup = useCallback(async (payload = exportedEventsJson) => {
+  const runAutoBackup = useCallback(async (payload = exportedEventsJson, destinationUri = autoBackupConfig.destinationUri) => {
     if (!isNativeAutoBackupSupported) {
       throw new Error(i18n.t("autoBackupUnsupported"));
     }
 
-    if (!autoBackupConfig.destinationUri) {
+    if (!destinationUri) {
       throw new Error(i18n.t("autoBackupDestinationMissing"));
     }
 
@@ -144,7 +144,7 @@ export const GlobalProvider = ({ children }) => {
     setAutoBackupRunning(true);
 
     try {
-      await writeBackupToDestination(autoBackupConfig.destinationUri, payload);
+      await writeBackupToDestination(destinationUri, payload);
       const completedAt = new Date().toISOString();
       lastBackedUpPayloadRef.current = payload;
       pendingBackupPayloadRef.current = null;
@@ -201,7 +201,7 @@ export const GlobalProvider = ({ children }) => {
       enabled: true,
       destinationUri: destinationUri || current.destinationUri,
     }));
-    await runAutoBackup(exportedEventsJson);
+    await runAutoBackup(exportedEventsJson, destinationUri || autoBackupConfig.destinationUri);
     return true;
   }, [autoBackupConfig.destinationUri, chooseAutoBackupDestination, exportedEventsJson, persistAutoBackupConfig, runAutoBackup]);
 
