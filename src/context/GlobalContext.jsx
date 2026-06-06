@@ -79,6 +79,22 @@ export const GlobalProvider = ({ children }) => {
   const [eventsLoading, setEventsLoading] = useState(false); // Fetching events
   const [processing, setProcessing] = useState(false); // CUD operations
   const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const showToast = useCallback((message) => {
+    if (!message) {
+      return;
+    }
+
+    setToast({
+      id: crypto.randomUUID(),
+      message,
+    });
+  }, []);
+
+  const clearToast = useCallback(() => {
+    setToast(null);
+  }, []);
 
   const ensureUniqueOccurrenceDay = useCallback((eventSeriesId, occurrenceDate, excludedOccurrenceId = null) => {
     const seriesOccurrences = occurrences
@@ -92,6 +108,18 @@ export const GlobalProvider = ({ children }) => {
       throw eventService.createDuplicateOccurrenceDayError();
     }
   }, [occurrences]);
+
+  useEffect(() => {
+    if (!toast?.id) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setToast((current) => (current?.id === toast.id ? null : current));
+    }, 3200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [toast]);
 
   const derivedEvents = useMemo(
     () => eventService.buildOccurrenceEvents(eventSeries, occurrences),
@@ -368,12 +396,16 @@ export const GlobalProvider = ({ children }) => {
     } catch (err) {
       logger.error("Error creating event:", err);
       const message = err?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? err.message : i18n.t("createEventError");
-      setError(message);
+      if (err?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR) {
+        showToast(message);
+      } else {
+        setError(message);
+      }
       throw new Error(message);
     } finally {
       setProcessing(false);
     }
-  }, [eventSeries, occurrences, syncReminders]);
+  }, [eventSeries, occurrences, showToast, syncReminders]);
 
   const handleUpdateEvent = useCallback(async (eventId, formData) => {
     if (!eventId) throw new Error(i18n.t("missingEventId"));
@@ -391,7 +423,11 @@ export const GlobalProvider = ({ children }) => {
         ensureUniqueOccurrenceDay(occurrenceToUpdate.eventSeriesId, formData.startDate, occurrenceToUpdate.id);
       } catch (error) {
         const message = error?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? error.message : i18n.t("updateEventError");
-        setError(message);
+        if (error?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR) {
+          showToast(message);
+        } else {
+          setError(message);
+        }
         throw new Error(message);
       }
     }
@@ -439,11 +475,15 @@ export const GlobalProvider = ({ children }) => {
       setEventSeries(originalSeries);
       setOccurrences(originalOccurrences);
       const message = error?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? error.message : i18n.t("updateEventError");
-      setError(message);
+      if (error?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR) {
+        showToast(message);
+      } else {
+        setError(message);
+      }
       logger.error("Rollback due to update error:", error);
       throw new Error(message);
     }
-  }, [ensureUniqueOccurrenceDay, eventSeries, occurrences, syncReminders]);
+  }, [ensureUniqueOccurrenceDay, eventSeries, occurrences, showToast, syncReminders]);
 
   const handleDeleteEvent = useCallback(async (eventId) => {
     if (!eventId) throw new Error(i18n.t("missingEventId"));
@@ -505,6 +545,54 @@ export const GlobalProvider = ({ children }) => {
     }
   }, [eventSeries, occurrences]);
 
+  const handleUpdateOccurrenceDate = useCallback(async (occurrenceId, occurrenceDate) => {
+    if (!occurrenceId) {
+      throw new Error(i18n.t("missingEventId"));
+    }
+
+    const originalOccurrences = occurrences;
+    const targetOccurrence = occurrences.find((item) => item.id === occurrenceId);
+
+    if (!targetOccurrence) {
+      throw new Error(i18n.t("occurrenceNotFound"));
+    }
+
+    try {
+      ensureUniqueOccurrenceDay(targetOccurrence.eventSeriesId, occurrenceDate, occurrenceId);
+    } catch (error) {
+      const message = error?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? error.message : i18n.t("updateEventError");
+      if (error?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR) {
+        showToast(message);
+      } else {
+        setError(message);
+      }
+      throw new Error(message);
+    }
+
+    const updatedOccurrenceRecord = eventService.createOccurrenceRecord({
+      id: targetOccurrence.id,
+      eventSeriesId: targetOccurrence.eventSeriesId,
+      occurrenceDate,
+      createdAt: targetOccurrence.createdAt,
+    });
+    const parsedOccurrence = eventService.parseOccurrenceRecord(updatedOccurrenceRecord);
+    const nextOccurrences = originalOccurrences.map((item) => (item.id === occurrenceId ? parsedOccurrence : item));
+
+    setOccurrences(nextOccurrences);
+
+    try {
+      await localDb.putOccurrence(updatedOccurrenceRecord);
+      await syncReminders(eventSeries, nextOccurrences, { requestPermissions: false });
+      setError(null);
+      return true;
+    } catch (error) {
+      setOccurrences(originalOccurrences);
+      setError(i18n.t("updateEventError"));
+      logger.error("Rollback due to occurrence update error:", error);
+      throw new Error(i18n.t("updateEventError"));
+    }
+  }, [ensureUniqueOccurrenceDay, eventSeries, occurrences, showToast, syncReminders]);
+
   const handleSaveRecurrence = useCallback(async (originalEvent, newDate) => {
     setProcessing(true);
     try {
@@ -527,13 +615,17 @@ export const GlobalProvider = ({ children }) => {
     } catch (err) {
       logger.error("Error creating recurrence:", err);
       const message = err?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR ? err.message : i18n.t("createRecurrenceError");
-      setError(message);
+      if (err?.code === eventService.DUPLICATE_OCCURRENCE_DAY_ERROR) {
+        showToast(message);
+      } else {
+        setError(message);
+      }
       throw new Error(message);
     }
     finally {
       setProcessing(false);
     }
-  }, [ensureUniqueOccurrenceDay, eventSeries, occurrences, syncReminders]);
+  }, [ensureUniqueOccurrenceDay, eventSeries, occurrences, showToast, syncReminders]);
 
   const replaceAllEvents = useCallback(async (nextEvents) => {
     setProcessing(true);
@@ -621,6 +713,7 @@ export const GlobalProvider = ({ children }) => {
     eventsLoading,
     processing,
     error,
+    toast,
     autoBackupConfig,
     autoBackupRunning,
     isAutoBackupSupported: isNativeAutoBackupSupported,
@@ -638,8 +731,11 @@ export const GlobalProvider = ({ children }) => {
     handleUpdateEvent,
     handleDeleteEvent,
     handleDeleteSingleOccurrence,
+    handleUpdateOccurrenceDate,
     handleSaveRecurrence,
     syncReminders,
+    showToast,
+    clearToast,
   };
 
   return (

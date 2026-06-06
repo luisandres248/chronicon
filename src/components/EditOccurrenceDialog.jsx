@@ -9,23 +9,27 @@ function toConfiguredDateValue(date, formatStr, locale) {
   return Number.isNaN(target.getTime()) ? "" : formatDate(target, formatStr, locale);
 }
 
-const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDate }) => {
+function EditOccurrenceDialog({ open, occurrence, eventName, onClose, onSubmit, onDelete }) {
   const { config } = useContext(GlobalContext);
   const { t, i18n } = useTranslation();
   const dateFormat = normalizeDateFormat(config?.dateFormat);
   const duplicateOccurrenceMessage = t("duplicateOccurrenceSameDay");
-  const [recurrenceDate, setRecurrenceDate] = useState(toConfiguredDateValue(initialDate || new Date(), dateFormat, i18n.language));
+  const [occurrenceDate, setOccurrenceDate] = useState(toConfiguredDateValue(occurrence?.startDate || new Date(), dateFormat, i18n.language));
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const initialRecurrenceDate = toConfiguredDateValue(initialDate || new Date(), dateFormat, i18n.language);
+  const [deleting, setDeleting] = useState(false);
+  const initialOccurrenceDate = toConfiguredDateValue(occurrence?.startDate || new Date(), dateFormat, i18n.language);
 
   useEffect(() => {
-    if (open) {
-      setRecurrenceDate(toConfiguredDateValue(initialDate || new Date(), dateFormat, i18n.language));
-      setError("");
-      setSaving(false);
+    if (!open) {
+      return;
     }
-  }, [open, initialDate, dateFormat, i18n.language]);
+
+    setOccurrenceDate(toConfiguredDateValue(occurrence?.startDate || new Date(), dateFormat, i18n.language));
+    setError("");
+    setSaving(false);
+    setDeleting(false);
+  }, [open, occurrence, dateFormat, i18n.language]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -38,7 +42,7 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose, recurrenceDate, saving]);
+  }, [open, occurrenceDate, saving, deleting]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -50,16 +54,17 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
 
     window.addEventListener("chronicon:back-button", handleBackButton);
     return () => window.removeEventListener("chronicon:back-button", handleBackButton);
-  }, [open, onClose, recurrenceDate, saving]);
+  }, [open, occurrenceDate, saving, deleting]);
 
-  if (!open || !eventToRecur) {
+  if (!open || !occurrence) {
     return null;
   }
 
-  const hasUnsavedChanges = recurrenceDate !== initialRecurrenceDate;
+  const busy = saving || deleting;
+  const hasUnsavedChanges = occurrenceDate !== initialOccurrenceDate;
 
   const attemptClose = () => {
-    if (saving) {
+    if (busy) {
       return;
     }
 
@@ -71,27 +76,36 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
   };
 
   const handleSave = async () => {
-    const parsedDate = parseDate(recurrenceDate, dateFormat, i18n.language);
+    const parsedDate = parseDate(occurrenceDate, dateFormat, i18n.language);
     if (!parsedDate) {
       setError(t("invalidStartDate"));
       return;
     }
 
-    if (!onSubmit) {
-      attemptClose();
-      return;
-    }
-
     setSaving(true);
     try {
-      await onSubmit(eventToRecur, parsedDate);
+      await onSubmit(occurrence.id, parsedDate);
       onClose();
     } catch (submitError) {
       if (submitError?.message !== duplicateOccurrenceMessage) {
-        setError(submitError?.message || t("createRecurrenceError"));
+        setError(submitError?.message || t("updateOccurrenceError"));
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(t("confirmDeleteOccurrence", { eventName }))) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await onDelete(occurrence.id);
+      onClose();
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -101,12 +115,12 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
         className="simple-dialog"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="add-recurrence-dialog-title"
+        aria-labelledby="edit-occurrence-dialog-title"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="simple-dialog__header">
-          <h2 id="add-recurrence-dialog-title" className="simple-dialog__title">
-            {t("addOccurrenceFor", { eventName: eventToRecur.name })}
+          <h2 id="edit-occurrence-dialog-title" className="simple-dialog__title">
+            {t("editOccurrenceTitle", { eventName })}
           </h2>
         </div>
         <div className="simple-dialog__body">
@@ -114,27 +128,33 @@ const AddRecurrenceDialog = ({ open, onClose, onSubmit, eventToRecur, initialDat
             className="simple-dialog__field"
             inputClassName="simple-dialog__input"
             label={t("recurrenceDateLabel")}
-            value={recurrenceDate}
+            value={occurrenceDate}
             onChange={(nextValue) => {
-              setRecurrenceDate(nextValue);
+              setOccurrenceDate(nextValue);
               if (error) {
                 setError("");
               }
             }}
             error={error}
+            disabled={busy}
           />
         </div>
-        <div className="simple-dialog__actions">
-          <button type="button" className="chronicon-button chronicon-button--ghost" onClick={attemptClose}>
-            {t("cancelButton")}
+        <div className="simple-dialog__actions simple-dialog__actions--spread">
+          <button type="button" className="chronicon-button chronicon-button--danger" onClick={handleDelete} disabled={busy}>
+            {t("deleteButton")}
           </button>
-          <button type="button" className="chronicon-button" onClick={handleSave} disabled={!recurrenceDate || saving}>
-            {t("saveButton")}
-          </button>
+          <div className="simple-dialog__actions-group">
+            <button type="button" className="chronicon-button chronicon-button--ghost" onClick={attemptClose} disabled={busy}>
+              {t("cancelButton")}
+            </button>
+            <button type="button" className="chronicon-button" onClick={handleSave} disabled={!occurrenceDate || busy}>
+              {t("updateButton")}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
-};
+}
 
-export default AddRecurrenceDialog;
+export default EditOccurrenceDialog;

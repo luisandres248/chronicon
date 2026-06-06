@@ -30,7 +30,11 @@ function CustomSelect({ label, value, onChange, options, containerClassName = ""
         {open ? <ChevronUpIcon width="16" height="16" /> : <ChevronDownIcon width="16" height="16" />}
       </button>
       {open ? (
-        <div className={`custom-select__menu ${menuClassName}`.trim()}>
+        <div
+          className={`custom-select__menu ${menuClassName}`.trim()}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+        >
           {options.map((option) => (
             <button
               key={option.value}

@@ -133,7 +133,7 @@ function EventsGrid() {
     <section className="page-shell">
       <AppHeader />
 
-      <div className="search-field">
+      <div className="search-field search-field--home">
         <input
           type="search"
           value={searchQuery}

@@ -18,7 +18,7 @@ function DateField({ label, value, onChange, error, disabled = false, className 
   const [open, setOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(parsedDate || new Date());
   const navigationStartMonth = useMemo(() => new Date(1900, 0, 1), []);
-  const navigationEndMonth = useMemo(() => new Date(new Date().getFullYear() + 5, 11, 31), []);
+  const navigationEndMonth = useMemo(() => new Date(new Date().getFullYear(), 11, 31), []);
   const monthOptions = useMemo(
     () =>
       Array.from({ length: 12 }, (_, index) => ({

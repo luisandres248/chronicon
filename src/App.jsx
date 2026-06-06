@@ -13,7 +13,7 @@ const EventCalendar = lazy(() => import("./components/EventCalendar"));
 const ImportEventsPage = lazy(() => import("./pages/ImportEventsPage"));
 
 function AppContent() {
-  const { config } = useContext(GlobalContext);
+  const { config, toast, clearToast } = useContext(GlobalContext);
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -101,6 +101,16 @@ function AppContent() {
           </Routes>
         </Suspense>
       </main>
+      {toast ? (
+        <div className="toast-stack" aria-live="polite" aria-atomic="true">
+          <div className="toast">
+            <span>{toast.message}</span>
+            <button type="button" className="toast__close" onClick={clearToast} aria-label={t("closeButton")}>
+              ×
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

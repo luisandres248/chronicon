@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useContext, useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { useTranslation } from "react-i18next";
@@ -11,6 +11,7 @@ import { ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon } from "./icons";
 
 const EventForm = lazy(() => import("./EventForm"));
 const AddRecurrenceDialog = lazy(() => import("./AddRecurrenceDialog"));
+const EditOccurrenceDialog = lazy(() => import("./EditOccurrenceDialog"));
 
 function cycleValue(values, index) {
   return values[index % values.length];
@@ -27,6 +28,8 @@ function EventCalendar() {
     error,
     handleUpdateEvent,
     handleDeleteEvent,
+    handleDeleteSingleOccurrence,
+    handleUpdateOccurrenceDate,
     handleSaveRecurrence,
     config,
     calendarColors,
@@ -38,8 +41,11 @@ function EventCalendar() {
   const [sinceLastMode, setSinceLastMode] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [recurrenceOpen, setRecurrenceOpen] = useState(false);
+  const [editOccurrenceOpen, setEditOccurrenceOpen] = useState(false);
+  const [selectedOccurrenceId, setSelectedOccurrenceId] = useState(null);
   const [eventListOpen, setEventListOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const selectorRef = useRef(null);
 
   const seriesList = useMemo(() => {
     const groups = new Map();
@@ -65,7 +71,7 @@ function EventCalendar() {
       .sort((a, b) => b.latest.startDate - a.latest.startDate);
   }, [events]);
 
-  const visibleSeriesList = useMemo(
+  const filteredSeriesList = useMemo(
     () => seriesList.filter((series) => matchesEventQuery(series.first, searchQuery)),
     [searchQuery, seriesList]
   );
@@ -78,7 +84,7 @@ function EventCalendar() {
 
     const incomingId = location.state?.selectedEventId;
     if (incomingId) {
-      const matchingSeries = visibleSeriesList.find(
+      const matchingSeries = seriesList.find(
         (series) => series.occurrences.some((occurrence) => occurrence.id === incomingId)
       );
       if (matchingSeries) {
@@ -87,24 +93,47 @@ function EventCalendar() {
       }
     }
 
-    if (!visibleSeriesList.length) {
-      setSelectedSeriesId(null);
-      return;
-    }
-
     setSelectedSeriesId((current) => (
-      current && visibleSeriesList.some((series) => series.seriesId === current)
+      current && seriesList.some((series) => series.seriesId === current)
         ? current
-        : visibleSeriesList[0].seriesId
+        : seriesList[0].seriesId
     ));
-  }, [location.state, seriesList, visibleSeriesList]);
+  }, [location.state, seriesList]);
 
   const selectedSeries = useMemo(
-    () => visibleSeriesList.find((series) => series.seriesId === selectedSeriesId) || visibleSeriesList[0] || null,
-    [selectedSeriesId, visibleSeriesList]
+    () => seriesList.find((series) => series.seriesId === selectedSeriesId) || seriesList[0] || null,
+    [selectedSeriesId, seriesList]
   );
 
-  const noMatchingResults = searchQuery.trim() && visibleSeriesList.length === 0;
+  const noMatchingResults = searchQuery.trim() && filteredSeriesList.length === 0;
+  const editableOccurrences = selectedSeries?.uniqueOccurrences.slice(1) || [];
+  const selectedOccurrence = editableOccurrences.find((occurrence) => occurrence.id === selectedOccurrenceId) || null;
+
+  useEffect(() => {
+    if (!eventListOpen) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      if (!selectorRef.current?.contains(event.target)) {
+        setEventListOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setEventListOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [eventListOpen]);
 
   const stats = useMemo(
     () => (selectedSeries ? calculateEventStats(selectedSeries.latest, selectedSeries.occurrences) : null),
@@ -204,50 +233,57 @@ function EventCalendar() {
       }
     >
       <header className="page-title-block">
-        <div className="event-selector">
+        <div className="event-selector" ref={selectorRef}>
           <button
             type="button"
             className="page-title-block__trigger"
-            onClick={() => setEventListOpen((current) => !current)}
+            onClick={() => {
+              setEventListOpen((current) => !current);
+              if (eventListOpen) {
+                setSearchQuery("");
+              }
+            }}
           >
             <span>{selectedSeries?.first?.name || t("selectEventToSeeStats")}</span>
             {eventListOpen ? <ChevronUpIcon width="20" height="20" /> : <ChevronDownIcon width="20" height="20" />}
           </button>
           {eventListOpen ? (
             <div className="event-selector__menu">
-              {visibleSeriesList.map((series) => (
-                <button
-                  key={series.seriesId}
-                  type="button"
-                  className={`event-selector__option ${series.seriesId === selectedSeries?.seriesId ? "event-selector__option--active" : ""}`}
-                  onClick={() => {
-                    setSelectedSeriesId(series.seriesId);
-                    setEventListOpen(false);
-                  }}
-                >
-                  {series.first.name}
-                </button>
-              ))}
+              <div className="event-selector__search">
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder={t("searchEventsPlaceholder")}
+                  aria-label={t("searchEventsPlaceholder")}
+                  autoFocus
+                />
+              </div>
+              <div className="event-selector__list">
+                {filteredSeriesList.map((series) => (
+                  <button
+                    key={series.seriesId}
+                    type="button"
+                    className={`event-selector__option ${series.seriesId === selectedSeries?.seriesId ? "event-selector__option--active" : ""}`}
+                    onClick={() => {
+                      setSelectedSeriesId(series.seriesId);
+                      setEventListOpen(false);
+                      setSearchQuery("");
+                    }}
+                  >
+                    {series.first.name}
+                  </button>
+                ))}
+                {noMatchingResults ? (
+                  <div className="event-selector__empty">{t("noSearchResultsMessage")}</div>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>
       </header>
 
-      <div className="search-field">
-        <input
-          type="search"
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder={t("searchEventsPlaceholder")}
-          aria-label={t("searchEventsPlaceholder")}
-        />
-      </div>
-
-      {noMatchingResults ? (
-        <div className="view-state">{t("noSearchResultsMessage")}</div>
-      ) : null}
-
-      {!selectedSeries && !noMatchingResults ? (
+      {!selectedSeries ? (
         <div className="view-state">{t("selectEventToSeeStats")}</div>
       ) : null}
 
@@ -338,7 +374,20 @@ function EventCalendar() {
         </div>
       ) : null}
 
-      {selectedSeries ? <TemporalGrid occurrences={selectedSeries.uniqueOccurrences} /> : null}
+      {selectedSeries ? (
+        <TemporalGrid
+          occurrences={selectedSeries.uniqueOccurrences}
+          selectedOccurrenceId={selectedOccurrenceId}
+          onOccurrenceClick={(occurrence) => {
+            if (occurrence.id === selectedSeries.first.id) {
+              return;
+            }
+
+            setSelectedOccurrenceId(occurrence.id);
+            setEditOccurrenceOpen(true);
+          }}
+        />
+      ) : null}
 
       {formOpen && selectedSeries ? (
         <Suspense fallback={<div className="view-state">{t("loadingEvents")}</div>}>
@@ -370,6 +419,25 @@ function EventCalendar() {
               await handleSaveRecurrence(selectedSeries.latest, date);
             }}
             eventToRecur={selectedSeries.latest}
+          />
+        </Suspense>
+      ) : null}
+
+      {editOccurrenceOpen && selectedOccurrence && selectedSeries ? (
+        <Suspense fallback={<div className="view-state">{t("loadingEvents")}</div>}>
+          <EditOccurrenceDialog
+            open={editOccurrenceOpen}
+            occurrence={selectedOccurrence}
+            eventName={selectedSeries.first.name}
+            onClose={() => {
+              setEditOccurrenceOpen(false);
+              setSelectedOccurrenceId(null);
+            }}
+            onSubmit={handleUpdateOccurrenceDate}
+            onDelete={async (occurrenceId) => {
+              await handleDeleteSingleOccurrence(occurrenceId);
+              setSelectedOccurrenceId(null);
+            }}
           />
         </Suspense>
       ) : null}

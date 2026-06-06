@@ -388,11 +388,36 @@ textarea {
   z-index: 15;
   display: flex;
   flex-direction: column;
-  max-height: 240px;
-  overflow-y: auto;
+  max-height: min(360px, calc(100dvh - 120px));
   border: 2px solid var(--border);
   background: var(--panel-alt);
   box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.event-selector__search {
+  padding: 10px;
+  border-bottom: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--panel-alt) 90%, black 10%);
+}
+
+.event-selector__search input {
+  width: 100%;
+  border: 1px solid var(--control-border);
+  background: var(--control-bg);
+  border-radius: 0;
+  padding: 10px 12px;
+  color: var(--control-fg);
+  outline: none;
+}
+
+.event-selector__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 280px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .event-selector__option {
@@ -415,6 +440,11 @@ textarea {
   color: var(--rail-ink);
 }
 
+.event-selector__empty {
+  padding: 14px 12px;
+  color: var(--muted);
+}
+
 .page-title-block p {
   margin: 4px 0 0;
   color: var(--muted);
@@ -435,6 +465,10 @@ textarea {
 
 .search-field input::placeholder {
   color: #666666;
+}
+
+.search-field--home {
+  margin-bottom: 18px;
 }
 
 .card-list {
@@ -995,6 +1029,9 @@ textarea {
 
 .date-field__select-menu {
   max-height: 220px;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .date-field__select-menu--year {
@@ -1144,11 +1181,14 @@ textarea {
   flex-direction: column;
   max-height: 240px;
   overflow-y: auto;
+  overflow-x: hidden;
   border: 1px solid var(--border);
   background: var(--panel-alt);
   box-shadow: var(--shadow);
   border-radius: 0;
-  overflow: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   backdrop-filter: blur(14px);
 }
 
@@ -1255,7 +1295,9 @@ textarea {
 .temporal-grid__cell {
   aspect-ratio: 1 / 1;
   background: var(--grid-base);
+  border: 0;
   border-radius: 0;
+  padding: 0;
 }
 
 .temporal-grid__cell--empty {
@@ -1268,6 +1310,19 @@ textarea {
 
 .temporal-grid__cell--first {
   outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.temporal-grid__cell--interactive {
+  cursor: pointer;
+}
+
+.temporal-grid__cell--interactive:hover {
+  filter: brightness(1.08);
+}
+
+.temporal-grid__cell--selected {
+  outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
 
@@ -1331,6 +1386,26 @@ textarea {
   backdrop-filter: blur(18px);
 }
 
+.simple-dialog__body {
+  padding: 16px 20px 0;
+}
+
+.simple-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 18px 20px 20px;
+}
+
+.simple-dialog__actions--spread {
+  justify-content: space-between;
+}
+
+.simple-dialog__actions-group {
+  display: flex;
+  gap: 10px;
+}
+
 .event-form-panel {
   width: min(100%, 560px);
   max-height: calc(100dvh - 40px - var(--safe-top) - var(--safe-bottom));
@@ -1362,6 +1437,43 @@ textarea {
   font-size: 1.4rem;
   font-weight: 600;
   line-height: 1.05;
+}
+
+.toast-stack {
+  position: fixed;
+  right: calc(16px + var(--safe-right));
+  bottom: calc(16px + var(--safe-bottom));
+  left: calc(16px + var(--safe-left));
+  z-index: 1200;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(100%, 460px);
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--panel-alt) 92%, black 8%);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  backdrop-filter: blur(18px);
+  pointer-events: auto;
+}
+
+.toast__close {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
 }
 
 .simple-dialog__body {

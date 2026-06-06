@@ -8,7 +8,7 @@ import { getUniqueOccurrencesByDay } from "../services/eventService";
 
 const COLUMNS = 24;
 
-function TemporalGrid({ occurrences = [] }) {
+function TemporalGrid({ occurrences = [], selectedOccurrenceId = null, onOccurrenceClick = null }) {
   const { t, i18n } = useTranslation();
   const { config } = useContext(GlobalContext);
   const dateFormat = normalizeDateFormat(config?.dateFormat);
@@ -40,23 +40,37 @@ function TemporalGrid({ occurrences = [] }) {
                 return <span key={`empty-${rowIndex}-${columnIndex}`} className="temporal-grid__cell temporal-grid__cell--empty" />;
               }
 
-              const hasOccurrence = occurrenceDates.some((occurrence) => isSameDay(occurrence.startDate, day));
+              const occurrence = occurrenceDates.find((item) => isSameDay(item.startDate, day)) || null;
+              const hasOccurrence = Boolean(occurrence);
               const isFirst = firstOccurrence ? isSameDay(firstOccurrence.startDate, day) : false;
+              const isSelected = selectedOccurrenceId && occurrence?.id === selectedOccurrenceId;
+              const isEditable = hasOccurrence && !isFirst && typeof onOccurrenceClick === "function";
               const className = [
                 "temporal-grid__cell",
                 hasOccurrence ? "temporal-grid__cell--hit" : "",
                 isFirst ? "temporal-grid__cell--first" : "",
+                isSelected ? "temporal-grid__cell--selected" : "",
+                isEditable ? "temporal-grid__cell--interactive" : "",
               ]
                 .filter(Boolean)
                 .join(" ");
 
-              return (
-                <span
-                  key={day.toISOString()}
-                  className={className}
-                  title={formatDate(day, dateFormat, i18n.language)}
-                />
-              );
+              const label = formatDate(day, dateFormat, i18n.language);
+
+              if (isEditable) {
+                return (
+                  <button
+                    key={day.toISOString()}
+                    type="button"
+                    className={className}
+                    title={label}
+                    aria-label={t("editOccurrenceOnDate", { date: label })}
+                    onClick={() => onOccurrenceClick(occurrence)}
+                  />
+                );
+              }
+
+              return <span key={day.toISOString()} className={className} title={label} />;
             })}
           </div>
         ))}
