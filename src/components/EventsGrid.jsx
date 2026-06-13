@@ -281,6 +281,20 @@ function EventsGrid() {
           />
         </Suspense>
       ) : null}
+      {eventToDelete && (
+        <ConfirmDialog
+          open={!!eventToDelete}
+          title={t("deleteButton")}
+          message={t("confirmDeleteEvent", { eventName: eventToDelete.title })}
+          confirmText={t("deleteButton")}
+          onConfirm={async () => {
+            await handleDeleteEvent(eventToDelete.id);
+            setEventToDelete(null);
+          }}
+          onClose={() => setEventToDelete(null)}
+          isDanger={true}
+        />
+      )}
     </section>
   );
 }
