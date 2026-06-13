@@ -62,7 +62,9 @@
     "gridLink": "Inicio",
     "importLink": "Importar / Exportar",
     "occurrences": "Ocurrencias",
-    "timeSinceFirstOccurrence": "Tiempo desde la primera ocurrencia",
+    "timeSinceFirstOccurrence": "Desde la primera ocurrencia",
+    "timeAgo": "Hace:",
+    "nextAnniversary": "Próximo aniversario",
     "lastTime": "Última vez",
     "averageBetweenOccurrences": "Promedio entre ocurrencias",
     "daysUnit": "días",
@@ -185,6 +187,7 @@
     "configSubtitle": "Preferencias de Chronicon",
     "dateFormatDescription": "",
     "appearanceDescription": "",
-    "languageDescription": ""
+    "languageDescription": "",
+    "anniversary": "Aniversario"
   }
 }

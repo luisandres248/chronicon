@@ -41,6 +41,7 @@ function EventCalendar() {
   const [timingMode, setTimingMode] = useState(0);
   const [intervalMode, setIntervalMode] = useState(0);
   const [sinceLastMode, setSinceLastMode] = useState(0);
+  const [anniversaryMode, setAnniversaryMode] = useState(0);
   const [formOpen, setFormOpen] = useState(false);
   const [recurrenceOpen, setRecurrenceOpen] = useState(false);
   const [editOccurrenceOpen, setEditOccurrenceOpen] = useState(false);
@@ -192,14 +193,43 @@ function EventCalendar() {
     ];
   }, [latestOccurrence, t]);
 
+  const anniversaryValues = useMemo(() => {
+    if (!firstOccurrence) return [t("notAvailable")];
+    const today = new Date();
+    
+    const anniversary = new Date(firstOccurrence.startDate);
+    anniversary.setFullYear(today.getFullYear());
+    
+    if (anniversary < today) {
+      anniversary.setFullYear(today.getFullYear() + 1);
+    }
+    
+    return [
+      t("eventMetricDays", { count: Math.abs(differenceInDays(anniversary, today)) }),
+      t("eventMetricHours", { count: Math.abs(differenceInHours(anniversary, today)) }),
+      t("eventMetricSeconds", { count: Math.abs(differenceInSeconds(anniversary, today)) }),
+    ];
+  }, [firstOccurrence, t]);
+
+  const isOneTime = selectedSeries?.first?.eventType === "one_time";
+
   const metrics = [
     {
-      title: t("timeSinceFirstOccurrence"),
+      title: isOneTime ? t("timeAgo") : t("timeSinceFirstOccurrence"),
       value: cycleValue(timeSinceValues, timingMode),
       hint: t("eventMetricHintPrimary"),
       onClick: () => setTimingMode((current) => current + 1),
     },
-    ...(selectedSeries && selectedSeries.uniqueOccurrences.length > 1
+    ...(isOneTime
+      ? [
+          {
+            title: t("nextAnniversary"),
+            value: cycleValue(anniversaryValues, anniversaryMode),
+            hint: t("eventMetricHintPrimary"),
+            onClick: () => setAnniversaryMode((current) => current + 1),
+          }
+        ]
+      : selectedSeries && selectedSeries.uniqueOccurrences.length > 1
       ? [
           {
             title: t("averageBetweenOccurrences"),
@@ -340,10 +370,12 @@ function EventCalendar() {
               <span>{t("startDateLabel")}</span>
               <strong>{firstDateLabel}</strong>
             </div>
-            <div className="event-overview-card__item">
-              <span>{t("occurrences")}</span>
-              <strong>{selectedSeries.uniqueOccurrences.length}</strong>
-            </div>
+            {!isOneTime ? (
+              <div className="event-overview-card__item">
+                <span>{t("occurrences")}</span>
+                <strong>{selectedSeries.uniqueOccurrences.length}</strong>
+              </div>
+            ) : null}
             {selectedSeries.uniqueOccurrences.length > 1 ? (
               <div className="event-overview-card__item">
                 <span>{t("lastTime")}</span>

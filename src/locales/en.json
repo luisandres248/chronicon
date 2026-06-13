@@ -62,7 +62,9 @@
     "gridLink": "Home",
     "importLink": "Import / Export",
     "occurrences": "Occurrences",
-    "timeSinceFirstOccurrence": "Time since first occurrence",
+    "timeSinceFirstOccurrence": "Since first occurrence",
+    "timeAgo": "Ago:",
+    "nextAnniversary": "Next anniversary",
     "lastTime": "Last time",
     "averageBetweenOccurrences": "Average between occurrences",
     "daysUnit": "days",
@@ -185,6 +187,7 @@
     "configSubtitle": "Chronicon preferences",
     "dateFormatDescription": "",
     "appearanceDescription": "",
-    "languageDescription": ""
+    "languageDescription": "",
+    "anniversary": "Anniversary"
   }
 }

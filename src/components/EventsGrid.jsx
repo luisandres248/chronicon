@@ -13,11 +13,37 @@ const EventForm = lazy(() => import("./EventForm"));
 
 function getSeriesMeta(series, locale, formatPattern, t) {
   const firstDate = formatDate(series.firstOccurrenceDate, formatPattern, locale);
-  const recurrenceText = series.eventType === "one_time"
-    ? t("eventTypeOneTime")
-    : series.recurrenceCount > 1
-      ? `${series.recurrenceCount} ${t("occurrences").toLowerCase()} · ${t("averageAbbrev")} ${series.averageGapDays} ${t("daysUnit")}`
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  
+  let recurrenceText = "";
+  if (series.eventType === "one_time") {
+    const mainText = rtf.format(-series.daysSinceFirst, "day");
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const anniversary = new Date(series.firstOccurrenceDate);
+    anniversary.setHours(0, 0, 0, 0);
+    anniversary.setFullYear(today.getFullYear());
+    
+    if (anniversary < today) {
+      anniversary.setFullYear(today.getFullYear() + 1);
+    }
+    
+    const daysToAnniversary = Math.round((anniversary - today) / (1000 * 60 * 60 * 24));
+    
+    if (series.daysSinceFirst > 0) {
+      let rtfDays = rtf.format(daysToAnniversary, "day");
+      rtfDays = rtfDays.replace("dentro de ", "en ");
+      
+      recurrenceText = `${mainText} · ${t("anniversary")} ${rtfDays}`;
+    } else {
+      recurrenceText = mainText;
+    }
+  } else {
+    recurrenceText = series.recurrenceCount > 1
+      ? `${series.recurrenceCount} ${t("occurrences").toLowerCase()} · ${t("averageAbbrev")} ${series.averageGapDays} ${t("daysUnit")} · ${t("lastTime").toLowerCase()} ${rtf.format(-series.daysSinceLast, "day")}`
       : `${series.daysSinceFirst} ${t("daysUnit")} ${t("sinceStart")}`;
+  }
 
   return { firstDate, recurrenceText };
 }
@@ -64,6 +90,7 @@ function EventsGrid() {
             : null;
 
         const daysSinceFirst = Math.round((Date.now() - firstOccurrenceDate.getTime()) / (1000 * 60 * 60 * 24));
+        const daysSinceLast = Math.round((Date.now() - lastOccurrenceDate.getTime()) / (1000 * 60 * 60 * 24));
 
         return {
           id: ordered[0].id,
@@ -77,6 +104,7 @@ function EventsGrid() {
           recurrenceCount: uniqueOccurrences.length,
           averageGapDays: averageGap,
           daysSinceFirst,
+          daysSinceLast,
           eventType: ordered[0].eventType || "one_time",
           remindersEnabled: hasEnabledReminders(ordered[0].reminders || []),
           pinnedAt: ordered[0].pinnedAt || null,
@@ -229,7 +257,6 @@ function EventsGrid() {
                   </div>
                   <div className="event-list-card__meta">{firstDate}</div>
                   <div className="event-list-card__submeta">
-                    {card.pinnedAt ? `${t("pinnedEvents")} · ` : ""}
                     {recurrenceText}
                     {card.remindersEnabled ? ` · ${t("reminderEnabledBadge")}` : ""}
                   </div>
