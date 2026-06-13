@@ -224,6 +224,10 @@ function CardColumnBackground({
             <stop offset="94%" stopColor={palette.capShadowRgbStr} stopOpacity={palette.capShadowOpacity * 3.5} />
             <stop offset="100%" stopColor={palette.capShadowRgbStr} stopOpacity={palette.capShadowOpacity * 3.5} />
           </linearGradient>
+          <filter id={`column-noise-${gradientId}`}>
+            <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch" />
+            <feColorMatrix type="matrix" values="1 0 0 0 0, 0 1 0 0 0, 0 0 1 0 0, 0 0 0 0.08 0" />
+          </filter>
         </defs>
 
         {flutes.map((flute, index) => (
@@ -269,7 +273,18 @@ function CardColumnBackground({
                   filter={`url(#column-blur-${gradientId})`}
                 />
               )}
-
+              <rect
+                x={flute.x}
+                y={fluteTop}
+                width={flute.width}
+                height={fluteBottom - fluteTop}
+                rx={fluteRadius}
+                ry={fluteRadius}
+                fill="none"
+                filter={`url(#column-noise-${gradientId})`}
+                style={{ mixBlendMode: "hard-light" }}
+                opacity={0.5}
+              />
             </g>
           </React.Fragment>
         ))}

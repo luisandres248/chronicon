@@ -92,10 +92,7 @@ textarea {
   min-height: 100dvh;
   margin-left: 92px;
   padding:
-    calc(10px + var(--safe-top))
-    calc(14px + var(--safe-right))
-    calc(48px + var(--safe-bottom))
-    calc(14px + var(--safe-left));
+    calc(10px + var(--safe-top)) calc(14px + var(--safe-right)) calc(48px + var(--safe-bottom)) calc(14px + var(--safe-left));
   transition: margin-left 0.22s ease;
 }
 
@@ -122,10 +119,7 @@ textarea {
   flex-direction: column;
   height: 100%;
   padding:
-    calc(20px + var(--safe-top))
-    calc(10px + var(--safe-right))
-    calc(20px + var(--safe-bottom))
-    calc(10px + var(--safe-left));
+    calc(20px + var(--safe-top)) calc(10px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(10px + var(--safe-left));
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0)),
     var(--rail);
@@ -278,32 +272,20 @@ textarea {
 .app-header {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
   min-height: 58px;
-  margin-bottom: 16px;
-  padding: 2px 0 0 20px;
-}
-
-.app-header__brand {
-  position: absolute;
-  left: 8px;
-  top: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  transform: translateY(-50%);
+  margin-bottom: 24px;
+  margin-top: 0;
+  padding: 0;
 }
 
 .app-header__logo {
   display: block;
-  height: 1.9rem;
+  height: 2.8rem;
   width: auto;
-}
-
-.app-header__center {
-  display: flex;
-  justify-content: center;
 }
 
 .app-header__title {
@@ -314,11 +296,9 @@ textarea {
   line-height: 0.9;
   font-weight: 400;
   letter-spacing: 0.02em;
+  padding-left: 0.02em;
+  /* visually center against letter-spacing */
   text-align: center;
-}
-
-.app-header__spacer {
-  display: none;
 }
 
 .page-shell--event {
@@ -331,9 +311,7 @@ textarea {
   --primary-action-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 36%, transparent);
   position: relative;
   padding:
-    14px
-    14px
-    18px;
+    14px 14px 18px;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 24%),
     radial-gradient(circle at top left, color-mix(in srgb, var(--accent) 14%, transparent), transparent 32%);
@@ -490,13 +468,13 @@ textarea {
   gap: 12px;
 }
 
-.card-list > * {
+.card-list>* {
   position: relative;
 }
 
-.card-list > *:has(.custom-select--open),
-.card-list > *:has(.event-selector__menu),
-.card-list > *:has(.date-field__popover) {
+.card-list>*:has(.custom-select--open),
+.card-list>*:has(.event-selector__menu),
+.card-list>*:has(.date-field__popover) {
   z-index: 40;
 }
 
@@ -646,6 +624,60 @@ textarea {
 
 .event-list-card--columnar {
   border-left: 0;
+  border-right: 0;
+}
+
+.home-column-cap {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 10;
+  margin-bottom: 0;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.15));
+}
+
+.home-column-cap__abacus {
+  margin-left: -12px;
+  margin-right: -12px;
+  padding: 0;
+  background: color-mix(in srgb, var(--panel) 96%, white);
+  border: 0;
+  border-radius: 0;
+  backdrop-filter: blur(10px);
+}
+
+.home-column-cap__abacus .search-field {
+  margin-bottom: 0;
+}
+
+.home-column-cap__abacus .search-field input {
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+  padding: 16px 24px;
+}
+
+.home-column-cap__echinus {
+  height: 20px;
+  margin-left: -12px;
+  margin-right: -12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.15) 100%), var(--panel);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 12px 100%);
+  margin-top: -1px;
+  backdrop-filter: blur(10px);
+}
+
+.home-column-cap__annulets {
+  height: 6px;
+  margin-left: 0;
+  margin-right: 0;
+  background: color-mix(in srgb, var(--panel) 85%, black);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25), inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+  margin-top: -1px;
+  margin-bottom: -1px;
 }
 
 .card-column-background {
@@ -1395,10 +1427,7 @@ textarea {
   align-items: center;
   justify-content: center;
   padding:
-    var(--safe-top)
-    var(--safe-right)
-    var(--safe-bottom)
-    var(--safe-left);
+    var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
   background: rgba(0, 0, 0, 0.4);
   color: #fff;
   font-size: 1rem;
@@ -1412,10 +1441,7 @@ textarea {
   align-items: center;
   justify-content: center;
   padding:
-    calc(20px + var(--safe-top))
-    calc(20px + var(--safe-right))
-    calc(20px + var(--safe-bottom))
-    calc(20px + var(--safe-left));
+    calc(20px + var(--safe-top)) calc(20px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(20px + var(--safe-left));
   background: rgba(4, 10, 17, 0.68);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -1788,7 +1814,8 @@ textarea {
 }
 
 @media (min-width: 801px) {
-  .sidebar--open ~ .app-shell__main,
+
+  .sidebar--open~.app-shell__main,
   .app-shell--sidebar-open .app-shell__main {
     margin-left: 250px;
   }
@@ -1820,10 +1847,7 @@ textarea {
   width: min(100%, 980px);
   margin: 0 auto;
   padding:
-    calc(24px + var(--safe-top))
-    calc(18px + var(--safe-right))
-    calc(42px + var(--safe-bottom))
-    calc(18px + var(--safe-left));
+    calc(24px + var(--safe-top)) calc(18px + var(--safe-right)) calc(42px + var(--safe-bottom)) calc(18px + var(--safe-left));
 }
 
 .public-page__header {
@@ -1939,7 +1963,8 @@ textarea {
   }
 
   .app-header {
-    padding-left: 24px;
+    padding-left: 0;
+    margin-top: -36px;
   }
 
   .sidebar {
@@ -1992,10 +2017,7 @@ textarea {
   .modal-overlay {
     align-items: flex-start;
     padding:
-      calc(12px + var(--safe-top))
-      calc(12px + var(--safe-right))
-      calc(12px + var(--safe-bottom))
-      calc(12px + var(--safe-left));
+      calc(12px + var(--safe-top)) calc(12px + var(--safe-right)) calc(12px + var(--safe-bottom)) calc(12px + var(--safe-left));
   }
 
   .simple-dialog,
@@ -2007,7 +2029,7 @@ textarea {
     flex-direction: column;
   }
 
-  .simple-dialog__actions > * {
+  .simple-dialog__actions>* {
     width: 100%;
   }
 
@@ -2015,7 +2037,7 @@ textarea {
     flex-direction: column;
   }
 
-  .event-form-dialog__actions-row > * {
+  .event-form-dialog__actions-row>* {
     width: 100%;
   }
 

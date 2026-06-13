@@ -136,14 +136,20 @@ function EventsGrid() {
     <section className="page-shell">
       <AppHeader />
 
-      <div className="search-field search-field--home">
-        <input
-          type="search"
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          placeholder={t("searchEventsPlaceholder")}
-          aria-label={t("searchEventsPlaceholder")}
-        />
+      <div className="home-column-cap">
+        <div className="home-column-cap__abacus">
+          <div className="search-field search-field--home">
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder={t("searchEventsPlaceholder")}
+              aria-label={t("searchEventsPlaceholder")}
+            />
+          </div>
+        </div>
+        <div className="home-column-cap__echinus"></div>
+        <div className="home-column-cap__annulets"></div>
       </div>
 
       <div className="card-list">

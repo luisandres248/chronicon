@@ -9,13 +9,8 @@ function AppHeader({ title = "Chronicon" }) {
 
   return (
     <header className="app-header">
-      <div className="app-header__brand" aria-hidden="true">
-        <img className="app-header__logo" src={src} alt="" />
-      </div>
-      <div className="app-header__center">
-        <h1 className="app-header__title">{title}</h1>
-      </div>
-      <div className="app-header__spacer" aria-hidden="true" />
+      <img className="app-header__logo" src={src} alt="Chronicon Logo" />
+      <h1 className="app-header__title">{title}</h1>
     </header>
   );
 }
