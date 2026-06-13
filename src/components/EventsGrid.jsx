@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
 import { getUniqueOccurrencesByDay, groupOccurrenceEventsBySeries, hasEnabledReminders, matchesEventQuery } from "../services/eventService";
 import AppHeader from "./AppHeader";
+import CardColumnBackground from "./CardColumnBackground";
 import { formatDate } from "../utils/dateFormatter";
 import { PencilIcon, PinIcon, PlusIcon, TrashIcon } from "./icons";
 
@@ -147,13 +148,23 @@ function EventsGrid() {
 
       <div className="card-list">
         {filteredSeriesCards.length > 0 ? (
-          filteredSeriesCards.map((card) => {
+          filteredSeriesCards.map((card, index) => {
             const { firstDate, recurrenceText } = getSeriesMeta(card, i18n.language, config.dateFormat, t);
+            const accentColor = card.event.colorId && calendarColors?.[card.event.colorId]?.background
+              ? calendarColors[card.event.colorId].background
+              : "#6592c8";
+            const variant = filteredSeriesCards.length === 1
+              ? "single"
+              : index === 0
+                ? "first"
+                : index === filteredSeriesCards.length - 1
+                  ? "last"
+                  : "middle";
 
             return (
               <article
                 key={card.seriesId}
-                className="event-list-card"
+                className="event-list-card event-list-card--columnar"
                 style={
                   card.event.colorId && calendarColors?.[card.event.colorId]?.background
                     ? {
@@ -164,53 +175,56 @@ function EventsGrid() {
                 }
                 onClick={() => navigate("/calendar", { state: { selectedEventId: card.id } })}
               >
-                <div className="event-list-card__title-row">
-                  <div>
-                    <h3>{card.name}</h3>
-                    {card.description ? <p className="event-list-card__description">{card.description}</p> : null}
+                <CardColumnBackground accentColor={accentColor} variant={variant} />
+                <div className="event-list-card__content">
+                  <div className="event-list-card__title-row">
+                    <div>
+                      <h3>{card.name}</h3>
+                      {card.description ? <p className="event-list-card__description">{card.description}</p> : null}
+                    </div>
+                    <div className="event-list-card__actions">
+                      <button
+                        type="button"
+                        className={`icon-action ${card.pinnedAt ? "icon-action--active" : ""}`.trim()}
+                        onClick={async (event) => {
+                          event.stopPropagation();
+                          await toggleEventPin(card.id);
+                        }}
+                        aria-label={card.pinnedAt ? t("unpinEvent") : t("pinEvent")}
+                      >
+                        <PinIcon width="16" height="16" />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-action"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSelectedEvent(card.event);
+                          setFormOpen(true);
+                        }}
+                        aria-label={t("editEventTitle")}
+                      >
+                        <PencilIcon width="16" height="16" />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-action"
+                        onClick={async (event) => {
+                          event.stopPropagation();
+                          await handleDeleteEvent(card.id);
+                        }}
+                        aria-label={t("deleteButton")}
+                      >
+                        <TrashIcon width="16" height="16" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="event-list-card__actions">
-                    <button
-                      type="button"
-                      className={`icon-action ${card.pinnedAt ? "icon-action--active" : ""}`.trim()}
-                      onClick={async (event) => {
-                        event.stopPropagation();
-                        await toggleEventPin(card.id);
-                      }}
-                      aria-label={card.pinnedAt ? t("unpinEvent") : t("pinEvent")}
-                    >
-                      <PinIcon width="16" height="16" />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-action"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setSelectedEvent(card.event);
-                        setFormOpen(true);
-                      }}
-                      aria-label={t("editEventTitle")}
-                    >
-                      <PencilIcon width="16" height="16" />
-                    </button>
-                    <button
-                      type="button"
-                      className="icon-action"
-                      onClick={async (event) => {
-                        event.stopPropagation();
-                        await handleDeleteEvent(card.id);
-                      }}
-                      aria-label={t("deleteButton")}
-                    >
-                      <TrashIcon width="16" height="16" />
-                    </button>
+                  <div className="event-list-card__meta">{firstDate}</div>
+                  <div className="event-list-card__submeta">
+                    {card.pinnedAt ? `${t("pinnedEvents")} · ` : ""}
+                    {recurrenceText}
+                    {card.remindersEnabled ? ` · ${t("reminderEnabledBadge")}` : ""}
                   </div>
-                </div>
-                <div className="event-list-card__meta">{firstDate}</div>
-                <div className="event-list-card__submeta">
-                  {card.pinnedAt ? `${t("pinnedEvents")} · ` : ""}
-                  {recurrenceText}
-                  {card.remindersEnabled ? ` · ${t("reminderEnabledBadge")}` : ""}
                 </div>
               </article>
             );

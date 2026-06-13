@@ -523,6 +523,8 @@ textarea {
 }
 
 .event-list-card {
+  position: relative;
+  overflow: hidden;
   text-align: left;
   cursor: pointer;
   --card-accent: var(--event-accent, var(--accent-base));
@@ -633,8 +635,30 @@ textarea {
   gap: 4px;
 }
 
-.event-list-card:not(.event-list-card--static) {
+.event-list-card__content {
+  position: relative;
+  z-index: 1;
+}
+
+.event-list-card:not(.event-list-card--static):not(.event-list-card--columnar) {
   border-left: 3px solid var(--card-accent, var(--accent));
+}
+
+.event-list-card--columnar {
+  border-left: 0;
+}
+
+.card-column-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.card-column-background__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .icon-action {
