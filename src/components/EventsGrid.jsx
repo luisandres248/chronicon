@@ -5,6 +5,7 @@ import { GlobalContext } from "../context/GlobalContext";
 import { getUniqueOccurrencesByDay, groupOccurrenceEventsBySeries, hasEnabledReminders, matchesEventQuery } from "../services/eventService";
 import AppHeader from "./AppHeader";
 import CardColumnBackground from "./CardColumnBackground";
+import ConfirmDialog from "./ConfirmDialog";
 import { formatDate } from "../utils/dateFormatter";
 import { PencilIcon, PinIcon, PlusIcon, TrashIcon } from "./icons";
 
@@ -41,6 +42,7 @@ function EventsGrid() {
   const navigate = useNavigate();
   const [formOpen, setFormOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [eventToDelete, setEventToDelete] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   const seriesCards = useMemo(() => {
@@ -215,11 +217,9 @@ function EventsGrid() {
                       <button
                         type="button"
                         className="icon-action"
-                        onClick={async (event) => {
+                        onClick={(event) => {
                           event.stopPropagation();
-                          if (window.confirm(t("confirmDeleteEvent", { eventName: card.title }))) {
-                            await handleDeleteEvent(card.id);
-                          }
+                          setEventToDelete({ id: card.id, title: card.title });
                         }}
                         aria-label={t("deleteButton")}
                       >

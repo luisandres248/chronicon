@@ -7,6 +7,7 @@ import { calculateEventStats, getUniqueOccurrencesByDay, groupOccurrenceEventsBy
 import { describeReminderRule } from "../services/reminderService";
 import { formatDate } from "../utils/dateFormatter";
 import TemporalGrid from "./TemporalGrid";
+import ConfirmDialog from "./ConfirmDialog";
 import { ChevronDownIcon, ChevronUpIcon, PencilIcon, PinIcon, TrashIcon } from "./icons";
 
 const EventForm = lazy(() => import("./EventForm"));
@@ -45,6 +46,7 @@ function EventCalendar() {
   const [editOccurrenceOpen, setEditOccurrenceOpen] = useState(false);
   const [selectedOccurrenceId, setSelectedOccurrenceId] = useState(null);
   const [eventListOpen, setEventListOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const selectorRef = useRef(null);
 
@@ -321,10 +323,8 @@ function EventCalendar() {
               <button
                 type="button"
                 className="icon-action"
-                onClick={async () => {
-                  if (window.confirm(t("confirmDeleteEvent", { eventName: selectedSeries.first.name }))) {
-                    await handleDeleteEvent(selectedSeries.first.id);
-                  }
+                onClick={() => {
+                  setEventToDelete({ id: selectedSeries.first.id, title: selectedSeries.first.name });
                 }}
                 aria-label={t("deleteButton")}
               >
@@ -458,6 +458,20 @@ function EventCalendar() {
           />
         </Suspense>
       ) : null}
+      {eventToDelete && (
+        <ConfirmDialog
+          open={!!eventToDelete}
+          title={t("deleteButton")}
+          message={t("confirmDeleteEvent", { eventName: eventToDelete.title })}
+          confirmText={t("deleteButton")}
+          onConfirm={async () => {
+             await handleDeleteEvent(eventToDelete.id);
+             setSelectedSeriesId(null);
+          }}
+          onClose={() => setEventToDelete(null)}
+          isDanger={true}
+        />
+      )}
     </section>
   );
 }
