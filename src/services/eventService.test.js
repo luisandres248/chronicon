@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildImportDedupKey,
   calculateEventStats,
   convertLegacyEventsToSeriesModel,
   createDuplicateOccurrenceDayError,
   createEventSeriesRecord,
   EVENT_TYPES,
+  getImportEventGroupKey,
   getUniqueOccurrencesByDay,
   hasOccurrenceOnSameDay,
   matchesEventQuery,
@@ -109,6 +111,7 @@ describe("eventService", () => {
     const created = createEventSeriesRecord({
       name: "Birthday",
       eventType: EVENT_TYPES.ONE_TIME,
+      pinnedAt: "2026-05-01T10:00:00.000Z",
       reminders: [
         {
           kind: REMINDER_KINDS.INTERVAL,
@@ -121,8 +124,23 @@ describe("eventService", () => {
     const parsed = parseEventSeriesRecord(created);
 
     expect(parsed.eventType).toBe(EVENT_TYPES.ONE_TIME);
+    expect(parsed.pinnedAt?.toISOString()).toBe("2026-05-01T10:00:00.000Z");
     expect(parsed.reminders).toHaveLength(1);
     expect(parsed.reminders[0].timeOfDay).toBe("09:00");
+  });
+
+  it("builds stable but non-colliding import keys", () => {
+    const baseEvent = {
+      name: "Birthday",
+      startDate: new Date("2026-05-20T10:30:00.000Z"),
+      description: "Family",
+      tags: ["home"],
+    };
+
+    expect(getImportEventGroupKey(baseEvent)).toBe(getImportEventGroupKey({ ...baseEvent }));
+    expect(buildImportDedupKey(baseEvent)).not.toBe(
+      buildImportDedupKey({ ...baseEvent, description: "Work" })
+    );
   });
 
   it("creates a domain-specific duplicate-day error", () => {

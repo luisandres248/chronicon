@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import { GlobalContext } from "../context/GlobalContext";
-import { groupEventsByName } from "../services/eventService";
+import { getImportEventGroupKey, groupEventsByName } from "../services/eventService";
 import {
   exportEventsToIcs,
   exportEventsToJson,
@@ -64,7 +64,7 @@ function ImportEventsPage() {
 
   const handleToggleSelectAll = (checked) => {
     if (checked) {
-      setSelectedGroupNames(new Set(eventGroupsForDisplay.map((group) => group[0].name)));
+      setSelectedGroupNames(new Set(eventGroupsForDisplay.map((group) => getImportEventGroupKey(group[0]))));
     } else {
       setSelectedGroupNames(new Set());
     }
@@ -146,7 +146,7 @@ function ImportEventsPage() {
 
   const handleImportSelected = async () => {
     const selectedEvents = eventGroupsForDisplay
-      .filter((group) => selectedGroupNames.has(group[0].name))
+      .filter((group) => selectedGroupNames.has(getImportEventGroupKey(group[0])))
       .flat();
 
     setImporting(true);
@@ -364,18 +364,22 @@ function ImportEventsPage() {
               </div>
 
               <div className="import-results__list import-preview-dialog__list">
-                {eventGroupsForDisplay.map((group) => (
-                  <label key={group[0].name} className="import-results__item">
-                    <input
-                      type="checkbox"
-                      checked={selectedGroupNames.has(group[0].name)}
-                      onChange={() => handleToggleSelectGroup(group[0].name)}
-                    />
-                    <div className="import-results__card">
-                      <ImportEventCard eventGroup={group} />
-                    </div>
-                  </label>
-                ))}
+                {eventGroupsForDisplay.map((group) => {
+                  const groupKey = getImportEventGroupKey(group[0]);
+
+                  return (
+                    <label key={groupKey} className="import-results__item">
+                      <input
+                        type="checkbox"
+                        checked={selectedGroupNames.has(groupKey)}
+                        onChange={() => handleToggleSelectGroup(groupKey)}
+                      />
+                      <div className="import-results__card">
+                        <ImportEventCard eventGroup={group} />
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 

@@ -4,6 +4,7 @@ import { ChevronDownIcon, ChevronUpIcon } from "./icons";
 function ColorSelect({ label, value, onChange, options }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
+  const menuId = `${label.replace(/\s+/g, "-").toLowerCase()}-colors`;
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -25,6 +26,14 @@ function ColorSelect({ label, value, onChange, options }) {
         type="button"
         className={`custom-select__trigger color-select__trigger ${open ? "custom-select__trigger--open" : ""}`}
         onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            setOpen(false);
+          }
+        }}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={menuId}
       >
         <span className="color-select__value">
           <span
@@ -36,7 +45,7 @@ function ColorSelect({ label, value, onChange, options }) {
         {open ? <ChevronUpIcon width="16" height="16" /> : <ChevronDownIcon width="16" height="16" />}
       </button>
       {open ? (
-        <div className="custom-select__menu color-select__menu">
+        <div className="custom-select__menu color-select__menu" id={menuId} role="listbox">
           {options.map((option) => (
             <button
               key={option.value}
@@ -46,6 +55,8 @@ function ColorSelect({ label, value, onChange, options }) {
                 onChange(option.value);
                 setOpen(false);
               }}
+              role="option"
+              aria-selected={option.value === value}
             >
               <span
                 className="color-select__swatch"

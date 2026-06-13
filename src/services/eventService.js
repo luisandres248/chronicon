@@ -43,6 +43,24 @@ export const LOCAL_EVENT_COLORS = {
   16: { background: "#5C4E8A", foreground: "#FFFFFF" },
   17: { background: "#7562A8", foreground: "#FFFFFF" },
   18: { background: "#9788C6", foreground: "#1C1A17" },
+  19: { background: "#B53E52", foreground: "#FFFFFF" },
+  20: { background: "#D96A7F", foreground: "#1C1A17" },
+  21: { background: "#9C4A2F", foreground: "#FFFFFF" },
+  22: { background: "#C46D3B", foreground: "#FFFFFF" },
+  23: { background: "#E3A24F", foreground: "#1C1A17" },
+  24: { background: "#B5A12A", foreground: "#1C1A17" },
+  25: { background: "#7F9932", foreground: "#1C1A17" },
+  26: { background: "#4D8A57", foreground: "#FFFFFF" },
+  27: { background: "#2F8C78", foreground: "#FFFFFF" },
+  28: { background: "#2B8FA3", foreground: "#FFFFFF" },
+  29: { background: "#2F6FA8", foreground: "#FFFFFF" },
+  30: { background: "#3C5FA8", foreground: "#FFFFFF" },
+  31: { background: "#6B5CB8", foreground: "#FFFFFF" },
+  32: { background: "#8B5BAF", foreground: "#FFFFFF" },
+  33: { background: "#A45A8B", foreground: "#FFFFFF" },
+  34: { background: "#7A614F", foreground: "#FFFFFF" },
+  35: { background: "#5E7288", foreground: "#FFFFFF" },
+  36: { background: "#8598AC", foreground: "#1C1A17" },
 };
 
 export const createEventObject = ({
@@ -144,6 +162,7 @@ export const createEventSeriesRecord = ({
   tags = [],
   eventType = EVENT_TYPES.SERIES,
   reminders = [],
+  pinnedAt = null,
   createdAt = new Date(),
   updatedAt = new Date(),
 }) => ({
@@ -154,6 +173,7 @@ export const createEventSeriesRecord = ({
   tags,
   eventType: normalizeEventType(eventType),
   reminders: reminders.map(createReminderRuleRecord),
+  pinnedAt: pinnedAt ? new Date(pinnedAt).toISOString() : null,
   createdAt: createdAt instanceof Date ? createdAt.toISOString() : new Date(createdAt).toISOString(),
   updatedAt: updatedAt instanceof Date ? updatedAt.toISOString() : new Date(updatedAt).toISOString(),
 });
@@ -169,6 +189,7 @@ export const parseEventSeriesRecord = (record) => {
     tags: Array.isArray(record.tags) ? record.tags : [],
     eventType: normalizeEventType(record.eventType),
     reminders: Array.isArray(record.reminders) ? record.reminders.map(parseReminderRuleRecord).filter(Boolean) : [],
+    pinnedAt: record.pinnedAt ? new Date(record.pinnedAt) : null,
     createdAt: record.createdAt ? new Date(record.createdAt) : new Date(),
     updatedAt: record.updatedAt ? new Date(record.updatedAt) : new Date(),
   };
@@ -262,6 +283,9 @@ export const createStoredEventRecord = ({
   tags = [],
   recurringEventId = null,
   recurrence = null,
+  eventType = EVENT_TYPES.ONE_TIME,
+  reminders = [],
+  pinnedAt = null,
 }) => ({
   id: id || crypto.randomUUID(),
   name: normalizeEventName(name),
@@ -274,6 +298,9 @@ export const createStoredEventRecord = ({
   tags,
   recurringEventId,
   recurrence,
+  eventType: normalizeEventType(eventType),
+  reminders: reminders.map(createReminderRuleRecord),
+  pinnedAt: pinnedAt ? new Date(pinnedAt).toISOString() : null,
 });
 
 export const parseStoredEvent = (event) => {
@@ -296,6 +323,9 @@ export const parseStoredEvent = (event) => {
     tags: Array.isArray(event.tags) ? event.tags : [],
     recurringEventId: event.recurringEventId || null,
     recurrence: event.recurrence || null,
+    eventType: normalizeEventType(event.eventType || EVENT_TYPES.ONE_TIME),
+    reminders: Array.isArray(event.reminders) ? event.reminders.map(parseReminderRuleRecord).filter(Boolean) : [],
+    pinnedAt: event.pinnedAt ? new Date(event.pinnedAt) : null,
   };
 };
 
@@ -318,6 +348,7 @@ export const buildOccurrenceEvents = (eventSeriesRecords, occurrenceRecords) => 
         tags: series.tags || [],
         eventType: normalizeEventType(series.eventType),
         reminders: series.reminders || [],
+        pinnedAt: series.pinnedAt || null,
         recurringEventId: series.id,
         recurrence: null,
       };
@@ -332,7 +363,7 @@ export const convertLegacyEventsToSeriesModel = (legacyEvents) => {
   legacyEvents.forEach((event) => {
     const parsed = parseStoredEvent(event);
     if (!parsed) return;
-    const key = normalizeEventName(parsed.name);
+    const key = parsed.recurringEventId || getImportEventGroupKey(parsed);
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(parsed);
   });
@@ -340,15 +371,21 @@ export const convertLegacyEventsToSeriesModel = (legacyEvents) => {
   const eventSeries = [];
   const occurrences = [];
 
-  Object.entries(grouped).forEach(([name, groupedEvents]) => {
+  Object.entries(grouped).forEach(([, groupedEvents]) => {
     groupedEvents.sort((a, b) => a.startDate - b.startDate);
     const first = groupedEvents[0];
     const series = createEventSeriesRecord({
-      name,
+      id: first.recurringEventId || undefined,
+      name: first.name,
       description: first.description || "",
       colorId: first.colorId || null,
       tags: first.tags || [],
-      eventType: groupedEvents.length > 1 ? EVENT_TYPES.SERIES : EVENT_TYPES.ONE_TIME,
+      eventType:
+        first.eventType === EVENT_TYPES.SERIES || groupedEvents.length > 1
+          ? EVENT_TYPES.SERIES
+          : EVENT_TYPES.ONE_TIME,
+      reminders: first.reminders || [],
+      pinnedAt: first.pinnedAt || null,
     });
 
     eventSeries.push(series);
@@ -370,23 +407,63 @@ export const convertOccurrenceEventsToSeriesModel = (occurrenceEvents) => {
   return convertLegacyEventsToSeriesModel(occurrenceEvents);
 };
 
+export const getSeriesIdentity = (event) => (
+  event?.eventSeriesId || event?.recurringEventId || event?.id || null
+);
+
+export const getImportEventGroupKey = (event) => {
+  const normalizedName = normalizeEventName(event?.name);
+  const description = (event?.description || "").trim().toLowerCase();
+  const colorId = event?.colorId || "";
+  const tags = Array.isArray(event?.tags) ? [...event.tags].map((tag) => String(tag).trim().toLowerCase()).sort().join("|") : "";
+
+  return `${normalizedName}__${description}__${colorId}__${tags}`;
+};
+
+export const buildImportDedupKey = (event) => {
+  const normalizedName = normalizeEventName(event?.name).toLowerCase();
+  const startDate = event?.startDate instanceof Date ? event.startDate : new Date(event?.startDate);
+  const startKey = Number.isNaN(startDate.getTime()) ? "invalid-date" : startDate.toISOString();
+  const description = (event?.description || "").trim().toLowerCase();
+  const colorId = event?.colorId || "";
+  const tags = Array.isArray(event?.tags) ? [...event.tags].map((tag) => String(tag).trim().toLowerCase()).sort().join("|") : "";
+
+  return `${normalizedName}__${startKey}__${description}__${colorId}__${tags}`;
+};
+
 export const groupEventsByName = (events) => {
   if (!events || !Array.isArray(events)) return {};
 
   const eventsByName = events.reduce((acc, event) => {
-    const name = normalizeEventName(event?.name);
-    if (!acc[name]) {
-      acc[name] = [];
+    const key = getImportEventGroupKey(event);
+    if (!acc[key]) {
+      acc[key] = [];
     }
-    acc[name].push(event);
+    acc[key].push(event);
     return acc;
   }, {});
 
-  Object.keys(eventsByName).forEach(name => {
-    eventsByName[name].sort((a, b) => a.startDate - b.startDate);
+  Object.keys(eventsByName).forEach((key) => {
+    eventsByName[key].sort((a, b) => a.startDate - b.startDate);
   });
 
   return eventsByName;
+};
+
+export const groupOccurrenceEventsBySeries = (events = []) => {
+  const groups = new Map();
+
+  events.forEach((event) => {
+    const key = getSeriesIdentity(event) || normalizeEventName(event?.name);
+    const current = groups.get(key) || [];
+    current.push(event);
+    groups.set(key, current);
+  });
+
+  return [...groups.entries()].map(([seriesId, seriesEvents]) => ({
+    seriesId,
+    occurrences: [...seriesEvents].sort((a, b) => a.startDate - b.startDate),
+  }));
 };
 
 export const normalizeSearchQuery = (value) => (

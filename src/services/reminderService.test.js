@@ -113,6 +113,7 @@ describe("reminderService", () => {
       "interval-30-days-last",
       "interval-6-months-last",
       "interval-monthly-last",
+      "interval-yearly-last",
     ]);
     expect(anniversaryPresetIds).toEqual([
       "anniversary-7-days",
@@ -166,6 +167,48 @@ describe("reminderService", () => {
     expect(scheduled.getFullYear()).toBe(2026);
     expect(scheduled.getMonth()).toBe(4);
     expect(scheduled.getDate()).toBe(27);
+    expect(scheduled.getHours()).toBe(9);
+    expect(scheduled.getMinutes()).toBe(0);
+  });
+
+  it("schedules recurring yearly reminders within the horizon", () => {
+    const series = createEventSeriesRecord({
+      id: "series-3",
+      name: "Birthday",
+      reminders: [
+        {
+          id: "interval-yearly",
+          kind: REMINDER_KINDS.INTERVAL,
+          anchor: REMINDER_ANCHORS.LAST,
+          value: 1,
+          unit: REMINDER_UNITS.YEARS,
+          timeOfDay: "09:00",
+        },
+      ],
+    });
+    const occurrences = [
+      createOccurrenceRecord({
+        id: "occ-1",
+        eventSeriesId: "series-3",
+        occurrenceDate: new Date("2025-06-20T12:00:00.000Z"),
+      }),
+    ];
+
+    const notifications = buildScheduledReminderNotifications(
+      series,
+      occurrences.map((occurrence) => ({
+        ...occurrence,
+        occurrenceDate: new Date(occurrence.occurrenceDate),
+      })),
+      new Date("2026-05-21T00:00:00.000Z"),
+      60
+    );
+
+    expect(notifications).toHaveLength(1);
+    const scheduled = notifications[0].schedule.at;
+    expect(scheduled.getFullYear()).toBe(2026);
+    expect(scheduled.getMonth()).toBe(5);
+    expect(scheduled.getDate()).toBe(20);
     expect(scheduled.getHours()).toBe(9);
     expect(scheduled.getMinutes()).toBe(0);
   });

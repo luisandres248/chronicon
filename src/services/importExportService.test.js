@@ -24,13 +24,25 @@ describe("importExportService", () => {
   });
 
   it("round-trips Chronicon JSON payloads", () => {
-    const exported = exportEventsToJson(sourceEvents);
+    const exported = exportEventsToJson([
+      {
+        ...sourceEvents[0],
+        eventType: "one_time",
+        reminders: [{ kind: "interval", anchor: "last_occurrence", unit: "years", value: 1, timeOfDay: "09:00" }],
+        pinnedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+    ]);
     const imported = importEventsFromJson(exported);
+    const payload = JSON.parse(exported);
 
+    expect(payload.version).toBe(2);
     expect(imported).toHaveLength(1);
     expect(imported[0].name).toBe("Release review");
     expect(imported[0].description).toContain("Line two");
     expect(imported[0].tags).toEqual(["ops,team", "release;prod"]);
+    expect(imported[0].eventType).toBe("one_time");
+    expect(imported[0].reminders).toHaveLength(1);
+    expect(imported[0].pinnedAt?.toISOString()).toBe("2026-05-01T12:00:00.000Z");
   });
 
   it("exports ICS with escaped values and imports them back", () => {

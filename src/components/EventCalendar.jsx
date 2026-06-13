@@ -3,11 +3,11 @@ import { useLocation } from "react-router-dom";
 import { differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from "date-fns";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
-import { calculateEventStats, getUniqueOccurrencesByDay, hasEnabledReminders, matchesEventQuery } from "../services/eventService";
+import { calculateEventStats, getUniqueOccurrencesByDay, groupOccurrenceEventsBySeries, hasEnabledReminders, matchesEventQuery } from "../services/eventService";
 import { describeReminderRule } from "../services/reminderService";
 import { formatDate } from "../utils/dateFormatter";
 import TemporalGrid from "./TemporalGrid";
-import { ChevronDownIcon, ChevronUpIcon, PencilIcon, TrashIcon } from "./icons";
+import { ChevronDownIcon, ChevronUpIcon, PencilIcon, PinIcon, TrashIcon } from "./icons";
 
 const EventForm = lazy(() => import("./EventForm"));
 const AddRecurrenceDialog = lazy(() => import("./AddRecurrenceDialog"));
@@ -31,6 +31,7 @@ function EventCalendar() {
     handleDeleteSingleOccurrence,
     handleUpdateOccurrenceDate,
     handleSaveRecurrence,
+    toggleEventPin,
     config,
     calendarColors,
   } = useContext(GlobalContext);
@@ -48,17 +49,9 @@ function EventCalendar() {
   const selectorRef = useRef(null);
 
   const seriesList = useMemo(() => {
-    const groups = new Map();
-    for (const event of events) {
-      const key = event.eventSeriesId || event.name;
-      const current = groups.get(key) || [];
-      current.push(event);
-      groups.set(key, current);
-    }
-
-    return [...groups.entries()]
-      .map(([seriesId, seriesEvents]) => {
-        const ordered = [...seriesEvents].sort((a, b) => a.startDate - b.startDate);
+    return groupOccurrenceEventsBySeries(events)
+      .map(({ seriesId, occurrences: seriesEvents }) => {
+        const ordered = [...seriesEvents];
         const uniqueOccurrences = getUniqueOccurrencesByDay(ordered);
         return {
           seriesId,
@@ -66,9 +59,19 @@ function EventCalendar() {
           latest: uniqueOccurrences[uniqueOccurrences.length - 1] || ordered[ordered.length - 1],
           occurrences: ordered,
           uniqueOccurrences,
+          pinnedAt: ordered[0].pinnedAt || null,
         };
       })
-      .sort((a, b) => b.latest.startDate - a.latest.startDate);
+      .sort((a, b) => {
+        const aPinned = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+        const bPinned = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+        if (aPinned || bPinned) {
+          if (aPinned && !bPinned) return -1;
+          if (!aPinned && bPinned) return 1;
+          if (aPinned !== bPinned) return bPinned - aPinned;
+        }
+        return b.latest.startDate - a.latest.startDate;
+      });
   }, [events]);
 
   const filteredSeriesList = useMemo(
@@ -271,6 +274,7 @@ function EventCalendar() {
                       setSearchQuery("");
                     }}
                   >
+                    {series.pinnedAt ? `${t("pinnedEvents")} · ` : ""}
                     {series.first.name}
                   </button>
                 ))}
@@ -292,9 +296,20 @@ function EventCalendar() {
         <article className="event-list-card event-list-card--static event-overview-card">
           <div className="event-list-card__title-row">
             <div className="event-list-card__meta">
+              {selectedSeries.pinnedAt ? `${t("pinnedEvents")} · ` : ""}
               {firstDateLabel} · {t("eventMetricDays", { count: stats?.daysSinceFirst ?? differenceInDays(new Date(), selectedSeries.first.startDate) })}
             </div>
             <div className="event-list-card__actions">
+              <button
+                type="button"
+                className={`icon-action ${selectedSeries.pinnedAt ? "icon-action--active" : ""}`.trim()}
+                onClick={async () => {
+                  await toggleEventPin(selectedSeries.first.id);
+                }}
+                aria-label={selectedSeries.pinnedAt ? t("unpinEvent") : t("pinEvent")}
+              >
+                <PinIcon width="16" height="16" />
+              </button>
               <button
                 type="button"
                 className="icon-action"

@@ -651,16 +651,11 @@ export const GlobalProvider = ({ children }) => {
   const mergeImportedEvents = useCallback(async (nextEvents) => {
     setProcessing(true);
     try {
-      const buildDedupKey = (event) => {
-        const normalizedName = eventService.normalizeEventName(event?.name).toLocaleLowerCase();
-        const parsedDate = event?.startDate instanceof Date ? event.startDate : new Date(event?.startDate);
-        return `${normalizedName}__${parsedDate.toISOString().slice(0, 10)}`;
-      };
       const existingKeys = new Set(
-        derivedEvents.map(buildDedupKey)
+        derivedEvents.map(eventService.buildImportDedupKey)
       );
       const uniqueEvents = nextEvents.filter(
-        (event) => !existingKeys.has(buildDedupKey(event))
+        (event) => !existingKeys.has(eventService.buildImportDedupKey(event))
       );
       if (uniqueEvents.length === 0) {
         return 0;
@@ -685,6 +680,44 @@ export const GlobalProvider = ({ children }) => {
       setProcessing(false);
     }
   }, [derivedEvents, eventSeries, occurrences, syncReminders]);
+
+  const toggleEventPin = useCallback(async (eventId) => {
+    if (!eventId) {
+      throw new Error(i18n.t("missingEventId"));
+    }
+
+    const occurrence = occurrences.find((item) => item.id === eventId);
+    if (!occurrence) {
+      throw new Error(i18n.t("occurrenceNotFound"));
+    }
+
+    const targetSeries = eventSeries.find((item) => item.id === occurrence.eventSeriesId);
+    if (!targetSeries) {
+      throw new Error(i18n.t("occurrenceNotFound"));
+    }
+
+    const updatedSeriesRecord = eventService.createEventSeriesRecord({
+      ...targetSeries,
+      pinnedAt: targetSeries.pinnedAt ? null : new Date(),
+      updatedAt: new Date(),
+    });
+    const parsedSeries = eventService.parseEventSeriesRecord(updatedSeriesRecord);
+    const nextSeries = eventSeries.map((item) => (item.id === parsedSeries.id ? parsedSeries : item));
+
+    setEventSeries(nextSeries);
+
+    try {
+      await localDb.putEventSeries(updatedSeriesRecord);
+      setError(null);
+      showToast(parsedSeries.pinnedAt ? i18n.t("eventPinned") : i18n.t("eventUnpinned"));
+      return true;
+    } catch (pinError) {
+      setEventSeries(eventSeries);
+      setError(i18n.t("updateEventError"));
+      logger.error("Rollback due to pin toggle error:", pinError);
+      throw new Error(i18n.t("updateEventError"));
+    }
+  }, [eventSeries, occurrences, showToast]);
 
   // --- CONFIGURATION MANAGEMENT ---
   const updateConfig = (newConfig) => {
@@ -733,6 +766,7 @@ export const GlobalProvider = ({ children }) => {
     handleDeleteSingleOccurrence,
     handleUpdateOccurrenceDate,
     handleSaveRecurrence,
+    toggleEventPin,
     syncReminders,
     showToast,
     clearToast,

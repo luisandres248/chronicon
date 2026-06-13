@@ -56,6 +56,16 @@ export const REMINDER_PRESETS = [
     category: "interval",
   },
   {
+    id: "interval-yearly-last",
+    kind: REMINDER_KINDS.INTERVAL,
+    anchor: REMINDER_ANCHORS.LAST,
+    unit: REMINDER_UNITS.YEARS,
+    value: 1,
+    timeOfDay: DEFAULT_REMINDER_TIME,
+    labelKey: "reminderPresetEveryYear",
+    category: "interval",
+  },
+  {
     id: "anniversary-7-days",
     kind: REMINDER_KINDS.ANNIVERSARY,
     anchor: REMINDER_ANCHORS.FIRST,

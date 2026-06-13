@@ -2,10 +2,10 @@ import React, { Suspense, lazy, useContext, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
-import { getUniqueOccurrencesByDay, hasEnabledReminders, matchesEventQuery } from "../services/eventService";
+import { getUniqueOccurrencesByDay, groupOccurrenceEventsBySeries, hasEnabledReminders, matchesEventQuery } from "../services/eventService";
 import AppHeader from "./AppHeader";
 import { formatDate } from "../utils/dateFormatter";
-import { PencilIcon, PlusIcon, TrashIcon } from "./icons";
+import { PencilIcon, PinIcon, PlusIcon, TrashIcon } from "./icons";
 
 const EventForm = lazy(() => import("./EventForm"));
 
@@ -30,6 +30,7 @@ function EventsGrid() {
     handleCreateEvent,
     handleUpdateEvent,
     handleDeleteEvent,
+    toggleEventPin,
     reloadEvents,
     config,
     calendarColors,
@@ -42,18 +43,9 @@ function EventsGrid() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const seriesCards = useMemo(() => {
-    const groups = new Map();
-
-    for (const event of events) {
-      const key = event.eventSeriesId || event.name;
-      const current = groups.get(key) || [];
-      current.push(event);
-      groups.set(key, current);
-    }
-
-    return [...groups.values()]
-      .map((seriesEvents) => {
-        const ordered = [...seriesEvents].sort((a, b) => a.startDate - b.startDate);
+    return groupOccurrenceEventsBySeries(events)
+      .map(({ seriesId, occurrences: seriesEvents }) => {
+        const ordered = [...seriesEvents];
         const uniqueOccurrences = getUniqueOccurrencesByDay(ordered);
         const firstOccurrenceDate = (uniqueOccurrences[0] || ordered[0]).startDate;
         const lastOccurrenceDate = (uniqueOccurrences[uniqueOccurrences.length - 1] || ordered[ordered.length - 1]).startDate;
@@ -72,7 +64,7 @@ function EventsGrid() {
 
         return {
           id: ordered[0].id,
-          seriesId: ordered[0].eventSeriesId || ordered[0].id,
+          seriesId,
           event: ordered[0],
           name: ordered[0].name,
           description: ordered[0].description,
@@ -84,9 +76,19 @@ function EventsGrid() {
           daysSinceFirst,
           eventType: ordered[0].eventType || "one_time",
           remindersEnabled: hasEnabledReminders(ordered[0].reminders || []),
+          pinnedAt: ordered[0].pinnedAt || null,
         };
       })
-      .sort((a, b) => b.lastOccurrenceDate - a.lastOccurrenceDate);
+      .sort((a, b) => {
+        const aPinned = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+        const bPinned = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+        if (aPinned || bPinned) {
+          if (aPinned && !bPinned) return -1;
+          if (!aPinned && bPinned) return 1;
+          if (aPinned !== bPinned) return bPinned - aPinned;
+        }
+        return b.lastOccurrenceDate - a.lastOccurrenceDate;
+      });
   }, [events]);
 
   const filteredSeriesCards = useMemo(
@@ -170,6 +172,17 @@ function EventsGrid() {
                   <div className="event-list-card__actions">
                     <button
                       type="button"
+                      className={`icon-action ${card.pinnedAt ? "icon-action--active" : ""}`.trim()}
+                      onClick={async (event) => {
+                        event.stopPropagation();
+                        await toggleEventPin(card.id);
+                      }}
+                      aria-label={card.pinnedAt ? t("unpinEvent") : t("pinEvent")}
+                    >
+                      <PinIcon width="16" height="16" />
+                    </button>
+                    <button
+                      type="button"
                       className="icon-action"
                       onClick={(event) => {
                         event.stopPropagation();
@@ -195,6 +208,7 @@ function EventsGrid() {
                 </div>
                 <div className="event-list-card__meta">{firstDate}</div>
                 <div className="event-list-card__submeta">
+                  {card.pinnedAt ? `${t("pinnedEvents")} · ` : ""}
                   {recurrenceText}
                   {card.remindersEnabled ? ` · ${t("reminderEnabledBadge")}` : ""}
                 </div>
@@ -210,7 +224,7 @@ function EventsGrid() {
 
       <button
         type="button"
-        className="floating-add-button"
+        className="chronicon-button floating-add-button"
         onClick={() => {
           setSelectedEvent(null);
           setFormOpen(true);

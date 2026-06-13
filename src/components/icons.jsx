@@ -122,6 +122,16 @@ export function UploadIcon(props) {
   );
 }
 
+export function PinIcon(props) {
+  return (
+    <IconBase {...props}>
+      <path d="M8 4h8" />
+      <path d="M9 4v5l-3 3h12l-3-3V4" />
+      <path d="M12 12v8" />
+    </IconBase>
+  );
+}
+
 export function CloseIcon(props) {
   return (
     <IconBase {...props}>

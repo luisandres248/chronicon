@@ -107,7 +107,7 @@ function formatUtcTimestamp(date) {
 
 export function exportEventsToJson(events) {
   const payload = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     events: events.map((event) => createStoredEventRecord(event)),
   };
