@@ -217,7 +217,9 @@ function EventsGrid() {
                         className="icon-action"
                         onClick={async (event) => {
                           event.stopPropagation();
-                          await handleDeleteEvent(card.id);
+                          if (window.confirm(t("confirmDeleteEvent", { eventName: card.title }))) {
+                            await handleDeleteEvent(card.id);
+                          }
                         }}
                         aria-label={t("deleteButton")}
                       >

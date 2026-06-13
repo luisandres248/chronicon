@@ -322,7 +322,9 @@ function EventCalendar() {
                 type="button"
                 className="icon-action"
                 onClick={async () => {
-                  await handleDeleteEvent(selectedSeries.first.id);
+                  if (window.confirm(t("confirmDeleteEvent", { eventName: selectedSeries.first.name }))) {
+                    await handleDeleteEvent(selectedSeries.first.id);
+                  }
                 }}
                 aria-label={t("deleteButton")}
               >

@@ -2,6 +2,11 @@
 @import url("https://fontlibrary.org//face/capitalis-minimalis");
 
 :root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --sidebar-notch-overlap: 20px;
   --bg:
     radial-gradient(circle at 18% 10%, rgba(101, 146, 200, 0.14), transparent 19%),
     radial-gradient(circle at 78% 60%, rgba(217, 145, 72, 0.08), transparent 16%),
@@ -128,7 +133,7 @@ textarea {
 
 .sidebar__notch {
   position: absolute;
-  top: 0;
+  top: -1px;
   right: -22px;
   z-index: 2;
   display: block;
