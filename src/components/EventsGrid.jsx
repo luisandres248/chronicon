@@ -219,7 +219,7 @@ function EventsGrid() {
                         className="icon-action"
                         onClick={(event) => {
                           event.stopPropagation();
-                          setEventToDelete({ id: card.id, title: card.title });
+                          setEventToDelete({ id: card.id, title: card.name });
                         }}
                         aria-label={t("deleteButton")}
                       >
