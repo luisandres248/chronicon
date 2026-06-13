@@ -242,6 +242,18 @@ function EventsGrid() {
         )}
       </div>
 
+      {filteredSeriesCards.length > 0 && (
+        <div className="home-column-base" aria-hidden="true">
+          <div className="home-column-base__annulets"></div>
+          <div className="home-column-base__torus-top"></div>
+          <div className="home-column-base__scotia"></div>
+          <div className="home-column-base__torus-bottom"></div>
+          <div className="home-column-base__plinth-1"></div>
+          <div className="home-column-base__plinth-2"></div>
+          <div className="home-column-base__plinth-3"></div>
+        </div>
+      )}
+
       <button
         type="button"
         className="chronicon-button floating-add-button"
