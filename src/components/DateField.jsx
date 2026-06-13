@@ -12,7 +12,7 @@ function DateField({ label, value, onChange, error, disabled = false, className 
   const { config } = useContext(GlobalContext);
   const { i18n, t } = useTranslation();
   const dateFormat = normalizeDateFormat(config?.dateFormat);
-  const parsedDate = parseDate(value, dateFormat, i18n.language);
+  const parsedDate = useMemo(() => parseDate(value, dateFormat, i18n.language), [value, dateFormat, i18n.language]);
   const dateLocale = getDateLocale(i18n.language);
   const rootRef = useRef(null);
   const [open, setOpen] = useState(false);
