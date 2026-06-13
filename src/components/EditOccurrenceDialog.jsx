@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GlobalContext } from "../context/GlobalContext";
 import DateField from "./DateField";
+import ConfirmDialog from "./ConfirmDialog";
 import { formatDate, normalizeDateFormat, parseDate } from "../utils/dateFormatter";
 
 function toConfiguredDateValue(date, formatStr, locale) {
@@ -18,6 +19,7 @@ function EditOccurrenceDialog({ open, occurrence, eventName, onClose, onSubmit, 
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const initialOccurrenceDate = toConfiguredDateValue(occurrence?.startDate || new Date(), dateFormat, i18n.language);
 
   useEffect(() => {
@@ -95,11 +97,11 @@ function EditOccurrenceDialog({ open, occurrence, eventName, onClose, onSubmit, 
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm(t("confirmDeleteOccurrence", { eventName }))) {
-      return;
-    }
+  const handleDelete = () => {
+    setConfirmDeleteOpen(true);
+  };
 
+  const executeDelete = async () => {
     setDeleting(true);
     try {
       await onDelete(occurrence.id);
@@ -153,6 +155,15 @@ function EditOccurrenceDialog({ open, occurrence, eventName, onClose, onSubmit, 
           </div>
         </div>
       </div>
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title={t("deleteButton")}
+        message={t("confirmDeleteOccurrence", { eventName })}
+        confirmText={t("deleteButton")}
+        onConfirm={executeDelete}
+        onClose={() => setConfirmDeleteOpen(false)}
+        isDanger={true}
+      />
     </div>
   );
 }

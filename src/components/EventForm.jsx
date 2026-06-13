@@ -13,6 +13,7 @@ import CustomSelect from "./CustomSelect";
 import DateField from "./DateField";
 import { CloseIcon, PencilIcon, TrashIcon } from "./icons";
 import ReminderRuleDialog from "./ReminderRuleDialog";
+import ConfirmDialog from "./ConfirmDialog";
 import { formatDate, normalizeDateFormat, parseDate } from "../utils/dateFormatter";
 
 function toConfiguredDateValue(date, formatStr, locale) {
@@ -38,6 +39,7 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete, seriesMeta
   const [submitting, setSubmitting] = useState(false);
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
   const [editingReminderIndex, setEditingReminderIndex] = useState(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const intervalPresets = REMINDER_PRESETS.filter((preset) => preset.category === "interval");
   const anniversaryPresets = REMINDER_PRESETS.filter((preset) => preset.category === "anniversary");
 
@@ -266,12 +268,14 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete, seriesMeta
   };
 
   const handleDelete = () => {
-    if (event && window.confirm(t("confirmDeleteEvent", { eventName: event.name }))) {
-      if (onDelete) {
-        onDelete(event.id);
-      }
-      onClose();
+    setConfirmDeleteOpen(true);
+  };
+
+  const executeDelete = () => {
+    if (onDelete) {
+      onDelete(event.id);
     }
+    onClose();
   };
 
   const colorOptions = [
@@ -523,6 +527,15 @@ const EventForm = ({ open, onClose, onSubmit, event = null, onDelete, seriesMeta
         }}
         onSave={handleSaveReminderRule}
         initialRule={editingReminderIndex === null ? null : formData.reminders[editingReminderIndex]}
+      />
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        title={t("deleteButton")}
+        message={t("confirmDeleteEvent", { eventName: event?.name })}
+        confirmText={t("deleteButton")}
+        onConfirm={executeDelete}
+        onClose={() => setConfirmDeleteOpen(false)}
+        isDanger={true}
       />
     </div>
   );
